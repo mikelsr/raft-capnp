@@ -20,5 +20,6 @@ struct Item {
 }
 
 struct NodeInfo {
-    id @0 :UInt64;
+    id      @0 :UInt64;
+    chan    @1 :Text;  # TODO replace with WW channel
 }
