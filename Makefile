@@ -4,7 +4,7 @@ ifeq ($(origin GOPATH), undefined)
     GOPATH := $(HOME)/go
 endif
 
-all: capnp
+all: capnp test
 
 
 capnp: capnp-raft
@@ -14,3 +14,10 @@ capnp: capnp-raft
 capnp-raft:
 	@mkdir -p proto/api
 	@capnp compile -I$(GOPATH)/src/capnproto.org/go/capnp/v3/std -ogo:proto/api --src-prefix=proto proto/raft.capnp
+
+test: test-wasm
+
+# Test that everything can be compiled to wasm
+test-wasm:
+	@env GOOS=wasip1 GOARCH=wasm gotip build -o ./test/wasm/test.wasm ./test/wasm
+	@rm ./test/wasm/test.wasm
