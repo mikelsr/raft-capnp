@@ -2,6 +2,8 @@ package raft
 
 import (
 	"context"
+	"encoding/json"
+	"sync"
 
 	"github.com/mikelsr/raft-capnp/proto/api"
 	"go.etcd.io/raft/v3"
@@ -11,8 +13,10 @@ import (
 // Node implements api.Raft_Server.
 type Node struct {
 	// raft specifics
-	raft  raft.Node
-	queue []raftpb.Message
+	raft      raft.Node
+	queue     []raftpb.Message
+	pauseLock sync.Mutex
+	pause     bool // can it be done with atomic.Bool?
 
 	Id uint64
 	Cluster
@@ -56,6 +60,19 @@ func (n *Node) Leave(ctx context.Context, call api.Raft_leave) error {
 }
 
 func (n *Node) Send(ctx context.Context, call api.Raft_send) error {
+	res, err := call.AllocResults()
+	if err != nil {
+		return err
+	}
+	msgData, err := call.Args().Msg()
+	if err != nil {
+		res.SetError(err.Error())
+		return err
+	}
+	if err = n.send(ctx, msgData); err != nil {
+		res.SetError(err.Error())
+		return err
+	}
 	return nil
 }
 
@@ -113,4 +130,40 @@ func (n *Node) leave(ctx context.Context, info Info) error {
 		NodeID: info.ID,
 	}
 	return n.raft.ProposeConfChange(ctx, cc)
+}
+
+func (n *Node) send(ctx context.Context, msgData []byte) error {
+	var msg *raftpb.Message
+	var err error
+
+	if err = json.Unmarshal(msgData, msg); err != nil {
+		return err
+	}
+
+	if n.isPaused() {
+		n.pauseLock.Lock()
+		n.queue = append(n.queue, *msg)
+		n.pauseLock.Unlock()
+	} else {
+		err = n.raft.Step(ctx, *msg)
+	}
+	return err
+}
+
+// TODO: send in the original repo
+func broadcast() {}
+
+func (n *Node) setPaused(pause bool) {
+	n.pauseLock.Lock()
+	defer n.pauseLock.Unlock()
+	n.pause = pause
+	if n.queue == nil {
+		n.queue = make([]raftpb.Message, 0)
+	}
+}
+
+func (n *Node) isPaused() bool {
+	n.pauseLock.Lock()
+	defer n.pauseLock.Unlock()
+	return n.pause
 }
