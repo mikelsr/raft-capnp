@@ -8,7 +8,7 @@ $Go.import("github.com/mikelsr/raft-capnp/proto/api");
 interface Raft {
     join        @0 (nodeInfo :NodeInfo) -> (nodes :List(NodeInfo), error :Text);
     leave       @1 (nodeInfo :NodeInfo) -> (error :Text);
-    send        @2 (message :Data)      -> (error :Text);
+    send        @2 (msg :Data)          -> (error :Text);
     put         @3 (item :Item)         -> (error :Text);
     list        @4 ()                   -> (objects :List(Item));
     members     @5 ()                   -> (members :List(NodeInfo));
