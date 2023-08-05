@@ -19,9 +19,7 @@ struct Item {
     value   @1 :Data;
 }
 
-# NodeInfo will most likely need to be converted to an interface
-# so the channel can be passed around.
-struct NodeInfo {
-    id      @0 :UInt64;
-    chan    @1 :Text;  # TODO replace with WW channel
+interface NodeInfo {
+    id      @0 () -> (id :UInt64);
+    channel @1 () -> (chan :Text);  # TODO replace with WW channel
 }
