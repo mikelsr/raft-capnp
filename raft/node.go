@@ -3,7 +3,9 @@ package raft
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"sync"
+	"time"
 
 	"github.com/mikelsr/raft-capnp/proto/api"
 	"go.etcd.io/raft/v3"
@@ -30,13 +32,16 @@ type Node struct {
 	hook OnNewValue
 }
 
+// CAPNP START
+
 // Join a Raft cluster.
 func (n *Node) Join(ctx context.Context, call api.Raft_join) error {
 	res, err := call.AllocResults()
 	if err != nil {
 		return err
 	}
-	nodes, err := n.join(ctx, n.Info())
+	node := call.Args().Node()
+	nodes, err := n.join(ctx, node)
 	if err != nil {
 		res.SetError(err.Error())
 		return err
@@ -46,8 +51,8 @@ func (n *Node) Join(ctx context.Context, call api.Raft_join) error {
 		res.SetError(err.Error())
 		return err
 	}
-	for i, n := range nodes {
-		caps.Set(i, n.Cap())
+	for i, node := range nodes {
+		caps.Set(i, node)
 	}
 	if err = res.SetNodes(caps); err != nil {
 		res.SetError(err.Error())
@@ -144,9 +149,9 @@ func (n *Node) send(ctx context.Context, msgData []byte) error {
 		return err
 	}
 
-	if n.isPaused() {
+	if n.IsPaused() {
 		n.pauseLock.Lock()
-		n.queue = append(n.queue, *msg)
+		n.queue <- *msg
 		n.pauseLock.Unlock()
 	} else {
 		err = n.raft.Step(ctx, *msg)
@@ -207,19 +212,84 @@ func (n *Node) Id(ctx context.Context, call api.Raft_id) error {
 	return nil
 }
 
-// TODO: send in the original repo
-func broadcast() {}
+// CAPNP END
 
-func (n *Node) setPaused(pause bool) {
-	n.pauseLock.Lock()
-	defer n.pauseLock.Unlock()
-	n.pause = pause
-	if n.queue == nil {
-		n.queue = make([]raftpb.Message, 0)
+func (n *Node) Start(ctx context.Context) {
+	for {
+		select {
+		case <-n.ticker.C:
+			n.raft.Tick()
+		case ready := <-n.raft.Ready():
+			// TODO
+			_ = ready
+		case pause := <-n.pauseChan:
+			// wait until unpause
+			n.setPaused(pause)
+			err := n.waitPause(ctx)
+			if err != nil {
+				n.stopChan <- err
+				break
+			}
+			// process pending messages
+			err = n.churnQueue(ctx)
+			if err != nil {
+				n.stopChan <- err
+			}
+		case <-ctx.Done():
+			n.stopChan <- ctx.Err()
+		case err := <-n.stopChan:
+			if err != nil {
+				log.Fatalf("Stop server with error `%s`.\n", err.Error())
+			} else {
+				log.Println("Stop server with no errors.")
+			}
+			n.raft.Stop()
+			close(n.stopChan)
+			return
+		}
 	}
 }
 
-func (n *Node) isPaused() bool {
+// wait until pause is set to true.
+func (n *Node) waitPause(ctx context.Context) error {
+	for n.pause {
+		select {
+		case pause := <-n.pauseChan:
+			n.setPaused(pause)
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return nil
+}
+
+// churnQueue process all messages in the queue until there are none left.
+func (n *Node) churnQueue(ctx context.Context) error {
+	n.pauseLock.Lock()
+	defer n.pauseLock.Unlock()
+
+	for len(n.queue) > 0 {
+		msg := <-n.queue
+		err := n.raft.Step(ctx, msg)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Pause the raft node.
+func (n *Node) Pause() {
+	n.pauseChan <- true
+}
+
+// Resume the raft node.
+func (n *Node) Resume() {
+	n.pauseChan <- false
+}
+
+func (n *Node) IsPaused() bool {
 	n.pauseLock.Lock()
 	defer n.pauseLock.Unlock()
 	return n.pause
