@@ -390,6 +390,6 @@ func (n *Node) Unregister(ctx context.Context, id uint64) {
 		return
 	}
 
-	// TODO release capability
-	n.Cluster.RemovePeer(id)
+	peer := n.Cluster.PopPeer(id)
+	peer.Release()
 }

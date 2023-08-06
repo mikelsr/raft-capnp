@@ -49,9 +49,11 @@ func (c *Cluster) AddPeer(ctx context.Context, peer api.Raft) {
 	c.lock.Unlock()
 }
 
-// RemovePeer removes a node from our neighbors
-func (c *Cluster) RemovePeer(id uint64) {
+// PopPeer removes a node from our neighbors
+func (c *Cluster) PopPeer(id uint64) api.Raft {
 	c.lock.Lock()
+	peer := c.peers[id]
 	delete(c.peers, id)
 	c.lock.Unlock()
+	return peer
 }
