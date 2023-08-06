@@ -462,7 +462,7 @@ func (n *Node) Register(ctx context.Context, id uint64) error {
 	)
 
 	for i := 0; i < RetrievalRetries; i++ {
-		node, err = n.retrieveWithTimeout(id, RetrievalTimeout)
+		node, err = n.retrieveWithTimeout(ctx, id, RetrievalTimeout)
 		if err == nil {
 			break
 		}
