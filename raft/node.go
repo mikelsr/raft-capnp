@@ -16,10 +16,16 @@ type Node struct {
 	Cluster
 
 	// raft specifics
-	raft      raft.Node
-	queue     []raftpb.Message
-	pauseLock sync.Mutex
+	raft    raft.Node
+	storage Storage
+	queue   MessageQueue
+
+	// status
 	pause     bool // can it be done with atomic.Bool?
+	pauseChan chan bool
+	pauseLock sync.Mutex
+	ticker    time.Ticker
+	stopChan  chan error
 
 	Id uint64
 	Cluster
@@ -218,4 +224,43 @@ func (n *Node) isPaused() bool {
 	n.pauseLock.Lock()
 	defer n.pauseLock.Unlock()
 	return n.pause
+}
+
+func (n *Node) setPaused(pause bool) {
+	n.pauseLock.Lock()
+	defer n.pauseLock.Unlock()
+	n.pause = pause
+}
+
+// TODO: send in the original repo
+func (n *Node) broadcast(ctx context.Context, messages []raftpb.Message) {
+	peers := n.Cluster.Peers()
+
+	for _, msg := range messages {
+		// Recipient is send.
+		if msg.To == n.ID {
+			n.raft.Step(ctx, msg)
+			continue
+		}
+
+		// Recipient is potentially a peer.
+		if peer, found := peers[msg.To]; found {
+			if err := rpcSend(ctx, peer, msg); err != nil {
+				n.raft.ReportUnreachable(msg.To)
+			}
+		}
+	}
+}
+
+// store a log entry.
+func (n *Node) store(hardState raftpb.HardState, entries []raftpb.Entry, snapshot raftpb.Snapshot) {
+	n.storage.Append(entries)
+
+	if !raft.IsEmptyHardState(hardState) {
+		n.storage.SetHardState(hardState)
+	}
+
+	if !raft.IsEmptySnap(snapshot) {
+		n.storage.ApplySnapshot(snapshot)
+	}
 }
