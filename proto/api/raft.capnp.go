@@ -136,6 +136,26 @@ func (c Raft) Members(ctx context.Context, params func(Raft_members_Params) erro
 
 }
 
+func (c Raft) Id(ctx context.Context, params func(Raft_id_Params) error) (Raft_id_Results_Future, capnp.ReleaseFunc) {
+
+	s := capnp.Send{
+		Method: capnp.Method{
+			InterfaceID:   0xbfb4702210603dcb,
+			MethodID:      6,
+			InterfaceName: "raft.capnp:Raft",
+			MethodName:    "id",
+		},
+	}
+	if params != nil {
+		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
+		s.PlaceArgs = func(s capnp.Struct) error { return params(Raft_id_Params(s)) }
+	}
+
+	ans, release := capnp.Client(c).SendCall(ctx, s)
+	return Raft_id_Results_Future{Future: ans.Future()}, release
+
+}
+
 func (c Raft) WaitStreaming() error {
 	return capnp.Client(c).WaitStreaming()
 }
@@ -220,6 +240,8 @@ type Raft_Server interface {
 	List(context.Context, Raft_list) error
 
 	Members(context.Context, Raft_members) error
+
+	Id(context.Context, Raft_id) error
 }
 
 // Raft_NewServer creates a new Server from an implementation of Raft_Server.
@@ -238,7 +260,7 @@ func Raft_ServerToClient(s Raft_Server) Raft {
 // This can be used to create a more complicated Server.
 func Raft_Methods(methods []server.Method, s Raft_Server) []server.Method {
 	if cap(methods) == 0 {
-		methods = make([]server.Method, 0, 6)
+		methods = make([]server.Method, 0, 7)
 	}
 
 	methods = append(methods, server.Method{
@@ -310,6 +332,18 @@ func Raft_Methods(methods []server.Method, s Raft_Server) []server.Method {
 		},
 		Impl: func(ctx context.Context, call *server.Call) error {
 			return s.Members(ctx, Raft_members{call})
+		},
+	})
+
+	methods = append(methods, server.Method{
+		Method: capnp.Method{
+			InterfaceID:   0xbfb4702210603dcb,
+			MethodID:      6,
+			InterfaceName: "raft.capnp:Raft",
+			MethodName:    "id",
+		},
+		Impl: func(ctx context.Context, call *server.Call) error {
+			return s.Id(ctx, Raft_id{call})
 		},
 	})
 
@@ -418,6 +452,23 @@ func (c Raft_members) AllocResults() (Raft_members_Results, error) {
 	return Raft_members_Results(r), err
 }
 
+// Raft_id holds the state for a server call to Raft.id.
+// See server.Call for documentation.
+type Raft_id struct {
+	*server.Call
+}
+
+// Args returns the call's arguments.
+func (c Raft_id) Args() Raft_id_Params {
+	return Raft_id_Params(c.Call.Args())
+}
+
+// AllocResults allocates the results struct.
+func (c Raft_id) AllocResults() (Raft_id_Results, error) {
+	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return Raft_id_Results(r), err
+}
+
 // Raft_List is a list of Raft.
 type Raft_List = capnp.CapList[Raft]
 
@@ -474,16 +525,16 @@ func (s Raft_join_Params) Message() *capnp.Message {
 func (s Raft_join_Params) Segment() *capnp.Segment {
 	return capnp.Struct(s).Segment()
 }
-func (s Raft_join_Params) NodeInfo() NodeInfo {
+func (s Raft_join_Params) Node() Raft {
 	p, _ := capnp.Struct(s).Ptr(0)
-	return NodeInfo(p.Interface().Client())
+	return Raft(p.Interface().Client())
 }
 
-func (s Raft_join_Params) HasNodeInfo() bool {
+func (s Raft_join_Params) HasNode() bool {
 	return capnp.Struct(s).HasPtr(0)
 }
 
-func (s Raft_join_Params) SetNodeInfo(v NodeInfo) error {
+func (s Raft_join_Params) SetNode(v Raft) error {
 	if !v.IsValid() {
 		return capnp.Struct(s).SetPtr(0, capnp.Ptr{})
 	}
@@ -508,8 +559,8 @@ func (f Raft_join_Params_Future) Struct() (Raft_join_Params, error) {
 	p, err := f.Future.Ptr()
 	return Raft_join_Params(p.Struct()), err
 }
-func (p Raft_join_Params_Future) NodeInfo() NodeInfo {
-	return NodeInfo(p.Future.Field(0, nil).Client())
+func (p Raft_join_Params_Future) Node() Raft {
+	return Raft(p.Future.Field(0, nil).Client())
 }
 
 type Raft_join_Results capnp.Struct
@@ -559,25 +610,25 @@ func (s Raft_join_Results) Message() *capnp.Message {
 func (s Raft_join_Results) Segment() *capnp.Segment {
 	return capnp.Struct(s).Segment()
 }
-func (s Raft_join_Results) Nodes() (NodeInfo_List, error) {
+func (s Raft_join_Results) Nodes() (Raft_List, error) {
 	p, err := capnp.Struct(s).Ptr(0)
-	return NodeInfo_List(p.List()), err
+	return Raft_List(p.List()), err
 }
 
 func (s Raft_join_Results) HasNodes() bool {
 	return capnp.Struct(s).HasPtr(0)
 }
 
-func (s Raft_join_Results) SetNodes(v NodeInfo_List) error {
+func (s Raft_join_Results) SetNodes(v Raft_List) error {
 	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewNodes sets the nodes field to a newly
-// allocated NodeInfo_List, preferring placement in s's segment.
-func (s Raft_join_Results) NewNodes(n int32) (NodeInfo_List, error) {
-	l, err := NewNodeInfo_List(capnp.Struct(s).Segment(), n)
+// allocated Raft_List, preferring placement in s's segment.
+func (s Raft_join_Results) NewNodes(n int32) (Raft_List, error) {
+	l, err := NewRaft_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
-		return NodeInfo_List{}, err
+		return Raft_List{}, err
 	}
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
@@ -664,16 +715,16 @@ func (s Raft_leave_Params) Message() *capnp.Message {
 func (s Raft_leave_Params) Segment() *capnp.Segment {
 	return capnp.Struct(s).Segment()
 }
-func (s Raft_leave_Params) NodeInfo() NodeInfo {
+func (s Raft_leave_Params) Node() Raft {
 	p, _ := capnp.Struct(s).Ptr(0)
-	return NodeInfo(p.Interface().Client())
+	return Raft(p.Interface().Client())
 }
 
-func (s Raft_leave_Params) HasNodeInfo() bool {
+func (s Raft_leave_Params) HasNode() bool {
 	return capnp.Struct(s).HasPtr(0)
 }
 
-func (s Raft_leave_Params) SetNodeInfo(v NodeInfo) error {
+func (s Raft_leave_Params) SetNode(v Raft) error {
 	if !v.IsValid() {
 		return capnp.Struct(s).SetPtr(0, capnp.Ptr{})
 	}
@@ -698,8 +749,8 @@ func (f Raft_leave_Params_Future) Struct() (Raft_leave_Params, error) {
 	p, err := f.Future.Ptr()
 	return Raft_leave_Params(p.Struct()), err
 }
-func (p Raft_leave_Params_Future) NodeInfo() NodeInfo {
-	return NodeInfo(p.Future.Field(0, nil).Client())
+func (p Raft_leave_Params_Future) Node() Raft {
+	return Raft(p.Future.Field(0, nil).Client())
 }
 
 type Raft_leave_Results capnp.Struct
@@ -1381,25 +1432,25 @@ func (s Raft_members_Results) Message() *capnp.Message {
 func (s Raft_members_Results) Segment() *capnp.Segment {
 	return capnp.Struct(s).Segment()
 }
-func (s Raft_members_Results) Members() (NodeInfo_List, error) {
+func (s Raft_members_Results) Members() (Raft_List, error) {
 	p, err := capnp.Struct(s).Ptr(0)
-	return NodeInfo_List(p.List()), err
+	return Raft_List(p.List()), err
 }
 
 func (s Raft_members_Results) HasMembers() bool {
 	return capnp.Struct(s).HasPtr(0)
 }
 
-func (s Raft_members_Results) SetMembers(v NodeInfo_List) error {
+func (s Raft_members_Results) SetMembers(v Raft_List) error {
 	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewMembers sets the members field to a newly
-// allocated NodeInfo_List, preferring placement in s's segment.
-func (s Raft_members_Results) NewMembers(n int32) (NodeInfo_List, error) {
-	l, err := NewNodeInfo_List(capnp.Struct(s).Segment(), n)
+// allocated Raft_List, preferring placement in s's segment.
+func (s Raft_members_Results) NewMembers(n int32) (Raft_List, error) {
+	l, err := NewRaft_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
-		return NodeInfo_List{}, err
+		return Raft_List{}, err
 	}
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
@@ -1420,6 +1471,143 @@ type Raft_members_Results_Future struct{ *capnp.Future }
 func (f Raft_members_Results_Future) Struct() (Raft_members_Results, error) {
 	p, err := f.Future.Ptr()
 	return Raft_members_Results(p.Struct()), err
+}
+
+type Raft_id_Params capnp.Struct
+
+// Raft_id_Params_TypeID is the unique identifier for the type Raft_id_Params.
+const Raft_id_Params_TypeID = 0xa8563660e0af9da4
+
+func NewRaft_id_Params(s *capnp.Segment) (Raft_id_Params, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Raft_id_Params(st), err
+}
+
+func NewRootRaft_id_Params(s *capnp.Segment) (Raft_id_Params, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
+	return Raft_id_Params(st), err
+}
+
+func ReadRootRaft_id_Params(msg *capnp.Message) (Raft_id_Params, error) {
+	root, err := msg.Root()
+	return Raft_id_Params(root.Struct()), err
+}
+
+func (s Raft_id_Params) String() string {
+	str, _ := text.Marshal(0xa8563660e0af9da4, capnp.Struct(s))
+	return str
+}
+
+func (s Raft_id_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Raft_id_Params) DecodeFromPtr(p capnp.Ptr) Raft_id_Params {
+	return Raft_id_Params(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Raft_id_Params) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Raft_id_Params) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Raft_id_Params) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Raft_id_Params) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
+
+// Raft_id_Params_List is a list of Raft_id_Params.
+type Raft_id_Params_List = capnp.StructList[Raft_id_Params]
+
+// NewRaft_id_Params creates a new list of Raft_id_Params.
+func NewRaft_id_Params_List(s *capnp.Segment, sz int32) (Raft_id_Params_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
+	return capnp.StructList[Raft_id_Params](l), err
+}
+
+// Raft_id_Params_Future is a wrapper for a Raft_id_Params promised by a client call.
+type Raft_id_Params_Future struct{ *capnp.Future }
+
+func (f Raft_id_Params_Future) Struct() (Raft_id_Params, error) {
+	p, err := f.Future.Ptr()
+	return Raft_id_Params(p.Struct()), err
+}
+
+type Raft_id_Results capnp.Struct
+
+// Raft_id_Results_TypeID is the unique identifier for the type Raft_id_Results.
+const Raft_id_Results_TypeID = 0xc07b385c303c1f57
+
+func NewRaft_id_Results(s *capnp.Segment) (Raft_id_Results, error) {
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return Raft_id_Results(st), err
+}
+
+func NewRootRaft_id_Results(s *capnp.Segment) (Raft_id_Results, error) {
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
+	return Raft_id_Results(st), err
+}
+
+func ReadRootRaft_id_Results(msg *capnp.Message) (Raft_id_Results, error) {
+	root, err := msg.Root()
+	return Raft_id_Results(root.Struct()), err
+}
+
+func (s Raft_id_Results) String() string {
+	str, _ := text.Marshal(0xc07b385c303c1f57, capnp.Struct(s))
+	return str
+}
+
+func (s Raft_id_Results) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+	return capnp.Struct(s).EncodeAsPtr(seg)
+}
+
+func (Raft_id_Results) DecodeFromPtr(p capnp.Ptr) Raft_id_Results {
+	return Raft_id_Results(capnp.Struct{}.DecodeFromPtr(p))
+}
+
+func (s Raft_id_Results) ToPtr() capnp.Ptr {
+	return capnp.Struct(s).ToPtr()
+}
+func (s Raft_id_Results) IsValid() bool {
+	return capnp.Struct(s).IsValid()
+}
+
+func (s Raft_id_Results) Message() *capnp.Message {
+	return capnp.Struct(s).Message()
+}
+
+func (s Raft_id_Results) Segment() *capnp.Segment {
+	return capnp.Struct(s).Segment()
+}
+func (s Raft_id_Results) Id() uint64 {
+	return capnp.Struct(s).Uint64(0)
+}
+
+func (s Raft_id_Results) SetId(v uint64) {
+	capnp.Struct(s).SetUint64(0, v)
+}
+
+// Raft_id_Results_List is a list of Raft_id_Results.
+type Raft_id_Results_List = capnp.StructList[Raft_id_Results]
+
+// NewRaft_id_Results creates a new list of Raft_id_Results.
+func NewRaft_id_Results_List(s *capnp.Segment, sz int32) (Raft_id_Results_List, error) {
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
+	return capnp.StructList[Raft_id_Results](l), err
+}
+
+// Raft_id_Results_Future is a wrapper for a Raft_id_Results promised by a client call.
+type Raft_id_Results_Future struct{ *capnp.Future }
+
+func (f Raft_id_Results_Future) Struct() (Raft_id_Results, error) {
+	p, err := f.Future.Ptr()
+	return Raft_id_Results(p.Struct()), err
 }
 
 type Item capnp.Struct
@@ -1512,589 +1700,80 @@ func (f Item_Future) Struct() (Item, error) {
 	return Item(p.Struct()), err
 }
 
-type NodeInfo capnp.Client
-
-// NodeInfo_TypeID is the unique identifier for the type NodeInfo.
-const NodeInfo_TypeID = 0xf3dbf85049fe61f0
-
-func (c NodeInfo) Id(ctx context.Context, params func(NodeInfo_id_Params) error) (NodeInfo_id_Results_Future, capnp.ReleaseFunc) {
-
-	s := capnp.Send{
-		Method: capnp.Method{
-			InterfaceID:   0xf3dbf85049fe61f0,
-			MethodID:      0,
-			InterfaceName: "raft.capnp:NodeInfo",
-			MethodName:    "id",
-		},
-	}
-	if params != nil {
-		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
-		s.PlaceArgs = func(s capnp.Struct) error { return params(NodeInfo_id_Params(s)) }
-	}
-
-	ans, release := capnp.Client(c).SendCall(ctx, s)
-	return NodeInfo_id_Results_Future{Future: ans.Future()}, release
-
-}
-
-func (c NodeInfo) Channel(ctx context.Context, params func(NodeInfo_channel_Params) error) (NodeInfo_channel_Results_Future, capnp.ReleaseFunc) {
-
-	s := capnp.Send{
-		Method: capnp.Method{
-			InterfaceID:   0xf3dbf85049fe61f0,
-			MethodID:      1,
-			InterfaceName: "raft.capnp:NodeInfo",
-			MethodName:    "channel",
-		},
-	}
-	if params != nil {
-		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 0}
-		s.PlaceArgs = func(s capnp.Struct) error { return params(NodeInfo_channel_Params(s)) }
-	}
-
-	ans, release := capnp.Client(c).SendCall(ctx, s)
-	return NodeInfo_channel_Results_Future{Future: ans.Future()}, release
-
-}
-
-func (c NodeInfo) WaitStreaming() error {
-	return capnp.Client(c).WaitStreaming()
-}
-
-// String returns a string that identifies this capability for debugging
-// purposes.  Its format should not be depended on: in particular, it
-// should not be used to compare clients.  Use IsSame to compare clients
-// for equality.
-func (c NodeInfo) String() string {
-	return "NodeInfo(" + capnp.Client(c).String() + ")"
-}
-
-// AddRef creates a new Client that refers to the same capability as c.
-// If c is nil or has resolved to null, then AddRef returns nil.
-func (c NodeInfo) AddRef() NodeInfo {
-	return NodeInfo(capnp.Client(c).AddRef())
-}
-
-// Release releases a capability reference.  If this is the last
-// reference to the capability, then the underlying resources associated
-// with the capability will be released.
-//
-// Release will panic if c has already been released, but not if c is
-// nil or resolved to null.
-func (c NodeInfo) Release() {
-	capnp.Client(c).Release()
-}
-
-// Resolve blocks until the capability is fully resolved or the Context
-// expires.
-func (c NodeInfo) Resolve(ctx context.Context) error {
-	return capnp.Client(c).Resolve(ctx)
-}
-
-func (c NodeInfo) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
-	return capnp.Client(c).EncodeAsPtr(seg)
-}
-
-func (NodeInfo) DecodeFromPtr(p capnp.Ptr) NodeInfo {
-	return NodeInfo(capnp.Client{}.DecodeFromPtr(p))
-}
-
-// IsValid reports whether c is a valid reference to a capability.
-// A reference is invalid if it is nil, has resolved to null, or has
-// been released.
-func (c NodeInfo) IsValid() bool {
-	return capnp.Client(c).IsValid()
-}
-
-// IsSame reports whether c and other refer to a capability created by the
-// same call to NewClient.  This can return false negatives if c or other
-// are not fully resolved: use Resolve if this is an issue.  If either
-// c or other are released, then IsSame panics.
-func (c NodeInfo) IsSame(other NodeInfo) bool {
-	return capnp.Client(c).IsSame(capnp.Client(other))
-}
-
-// Update the flowcontrol.FlowLimiter used to manage flow control for
-// this client. This affects all future calls, but not calls already
-// waiting to send. Passing nil sets the value to flowcontrol.NopLimiter,
-// which is also the default.
-func (c NodeInfo) SetFlowLimiter(lim fc.FlowLimiter) {
-	capnp.Client(c).SetFlowLimiter(lim)
-}
-
-// Get the current flowcontrol.FlowLimiter used to manage flow control
-// for this client.
-func (c NodeInfo) GetFlowLimiter() fc.FlowLimiter {
-	return capnp.Client(c).GetFlowLimiter()
-}
-
-// A NodeInfo_Server is a NodeInfo with a local implementation.
-type NodeInfo_Server interface {
-	Id(context.Context, NodeInfo_id) error
-
-	Channel(context.Context, NodeInfo_channel) error
-}
-
-// NodeInfo_NewServer creates a new Server from an implementation of NodeInfo_Server.
-func NodeInfo_NewServer(s NodeInfo_Server) *server.Server {
-	c, _ := s.(server.Shutdowner)
-	return server.New(NodeInfo_Methods(nil, s), s, c)
-}
-
-// NodeInfo_ServerToClient creates a new Client from an implementation of NodeInfo_Server.
-// The caller is responsible for calling Release on the returned Client.
-func NodeInfo_ServerToClient(s NodeInfo_Server) NodeInfo {
-	return NodeInfo(capnp.NewClient(NodeInfo_NewServer(s)))
-}
-
-// NodeInfo_Methods appends Methods to a slice that invoke the methods on s.
-// This can be used to create a more complicated Server.
-func NodeInfo_Methods(methods []server.Method, s NodeInfo_Server) []server.Method {
-	if cap(methods) == 0 {
-		methods = make([]server.Method, 0, 2)
-	}
-
-	methods = append(methods, server.Method{
-		Method: capnp.Method{
-			InterfaceID:   0xf3dbf85049fe61f0,
-			MethodID:      0,
-			InterfaceName: "raft.capnp:NodeInfo",
-			MethodName:    "id",
-		},
-		Impl: func(ctx context.Context, call *server.Call) error {
-			return s.Id(ctx, NodeInfo_id{call})
-		},
-	})
-
-	methods = append(methods, server.Method{
-		Method: capnp.Method{
-			InterfaceID:   0xf3dbf85049fe61f0,
-			MethodID:      1,
-			InterfaceName: "raft.capnp:NodeInfo",
-			MethodName:    "channel",
-		},
-		Impl: func(ctx context.Context, call *server.Call) error {
-			return s.Channel(ctx, NodeInfo_channel{call})
-		},
-	})
-
-	return methods
-}
-
-// NodeInfo_id holds the state for a server call to NodeInfo.id.
-// See server.Call for documentation.
-type NodeInfo_id struct {
-	*server.Call
-}
-
-// Args returns the call's arguments.
-func (c NodeInfo_id) Args() NodeInfo_id_Params {
-	return NodeInfo_id_Params(c.Call.Args())
-}
-
-// AllocResults allocates the results struct.
-func (c NodeInfo_id) AllocResults() (NodeInfo_id_Results, error) {
-	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return NodeInfo_id_Results(r), err
-}
-
-// NodeInfo_channel holds the state for a server call to NodeInfo.channel.
-// See server.Call for documentation.
-type NodeInfo_channel struct {
-	*server.Call
-}
-
-// Args returns the call's arguments.
-func (c NodeInfo_channel) Args() NodeInfo_channel_Params {
-	return NodeInfo_channel_Params(c.Call.Args())
-}
-
-// AllocResults allocates the results struct.
-func (c NodeInfo_channel) AllocResults() (NodeInfo_channel_Results, error) {
-	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return NodeInfo_channel_Results(r), err
-}
-
-// NodeInfo_List is a list of NodeInfo.
-type NodeInfo_List = capnp.CapList[NodeInfo]
-
-// NewNodeInfo creates a new list of NodeInfo.
-func NewNodeInfo_List(s *capnp.Segment, sz int32) (NodeInfo_List, error) {
-	l, err := capnp.NewPointerList(s, sz)
-	return capnp.CapList[NodeInfo](l), err
-}
-
-type NodeInfo_id_Params capnp.Struct
-
-// NodeInfo_id_Params_TypeID is the unique identifier for the type NodeInfo_id_Params.
-const NodeInfo_id_Params_TypeID = 0x870cd3c7477f97c3
-
-func NewNodeInfo_id_Params(s *capnp.Segment) (NodeInfo_id_Params, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return NodeInfo_id_Params(st), err
-}
-
-func NewRootNodeInfo_id_Params(s *capnp.Segment) (NodeInfo_id_Params, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return NodeInfo_id_Params(st), err
-}
-
-func ReadRootNodeInfo_id_Params(msg *capnp.Message) (NodeInfo_id_Params, error) {
-	root, err := msg.Root()
-	return NodeInfo_id_Params(root.Struct()), err
-}
-
-func (s NodeInfo_id_Params) String() string {
-	str, _ := text.Marshal(0x870cd3c7477f97c3, capnp.Struct(s))
-	return str
-}
-
-func (s NodeInfo_id_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
-	return capnp.Struct(s).EncodeAsPtr(seg)
-}
-
-func (NodeInfo_id_Params) DecodeFromPtr(p capnp.Ptr) NodeInfo_id_Params {
-	return NodeInfo_id_Params(capnp.Struct{}.DecodeFromPtr(p))
-}
-
-func (s NodeInfo_id_Params) ToPtr() capnp.Ptr {
-	return capnp.Struct(s).ToPtr()
-}
-func (s NodeInfo_id_Params) IsValid() bool {
-	return capnp.Struct(s).IsValid()
-}
-
-func (s NodeInfo_id_Params) Message() *capnp.Message {
-	return capnp.Struct(s).Message()
-}
-
-func (s NodeInfo_id_Params) Segment() *capnp.Segment {
-	return capnp.Struct(s).Segment()
-}
-
-// NodeInfo_id_Params_List is a list of NodeInfo_id_Params.
-type NodeInfo_id_Params_List = capnp.StructList[NodeInfo_id_Params]
-
-// NewNodeInfo_id_Params creates a new list of NodeInfo_id_Params.
-func NewNodeInfo_id_Params_List(s *capnp.Segment, sz int32) (NodeInfo_id_Params_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return capnp.StructList[NodeInfo_id_Params](l), err
-}
-
-// NodeInfo_id_Params_Future is a wrapper for a NodeInfo_id_Params promised by a client call.
-type NodeInfo_id_Params_Future struct{ *capnp.Future }
-
-func (f NodeInfo_id_Params_Future) Struct() (NodeInfo_id_Params, error) {
-	p, err := f.Future.Ptr()
-	return NodeInfo_id_Params(p.Struct()), err
-}
-
-type NodeInfo_id_Results capnp.Struct
-
-// NodeInfo_id_Results_TypeID is the unique identifier for the type NodeInfo_id_Results.
-const NodeInfo_id_Results_TypeID = 0xc80a93339b37cb72
-
-func NewNodeInfo_id_Results(s *capnp.Segment) (NodeInfo_id_Results, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return NodeInfo_id_Results(st), err
-}
-
-func NewRootNodeInfo_id_Results(s *capnp.Segment) (NodeInfo_id_Results, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0})
-	return NodeInfo_id_Results(st), err
-}
-
-func ReadRootNodeInfo_id_Results(msg *capnp.Message) (NodeInfo_id_Results, error) {
-	root, err := msg.Root()
-	return NodeInfo_id_Results(root.Struct()), err
-}
-
-func (s NodeInfo_id_Results) String() string {
-	str, _ := text.Marshal(0xc80a93339b37cb72, capnp.Struct(s))
-	return str
-}
-
-func (s NodeInfo_id_Results) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
-	return capnp.Struct(s).EncodeAsPtr(seg)
-}
-
-func (NodeInfo_id_Results) DecodeFromPtr(p capnp.Ptr) NodeInfo_id_Results {
-	return NodeInfo_id_Results(capnp.Struct{}.DecodeFromPtr(p))
-}
-
-func (s NodeInfo_id_Results) ToPtr() capnp.Ptr {
-	return capnp.Struct(s).ToPtr()
-}
-func (s NodeInfo_id_Results) IsValid() bool {
-	return capnp.Struct(s).IsValid()
-}
-
-func (s NodeInfo_id_Results) Message() *capnp.Message {
-	return capnp.Struct(s).Message()
-}
-
-func (s NodeInfo_id_Results) Segment() *capnp.Segment {
-	return capnp.Struct(s).Segment()
-}
-func (s NodeInfo_id_Results) Id() uint64 {
-	return capnp.Struct(s).Uint64(0)
-}
-
-func (s NodeInfo_id_Results) SetId(v uint64) {
-	capnp.Struct(s).SetUint64(0, v)
-}
-
-// NodeInfo_id_Results_List is a list of NodeInfo_id_Results.
-type NodeInfo_id_Results_List = capnp.StructList[NodeInfo_id_Results]
-
-// NewNodeInfo_id_Results creates a new list of NodeInfo_id_Results.
-func NewNodeInfo_id_Results_List(s *capnp.Segment, sz int32) (NodeInfo_id_Results_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 0}, sz)
-	return capnp.StructList[NodeInfo_id_Results](l), err
-}
-
-// NodeInfo_id_Results_Future is a wrapper for a NodeInfo_id_Results promised by a client call.
-type NodeInfo_id_Results_Future struct{ *capnp.Future }
-
-func (f NodeInfo_id_Results_Future) Struct() (NodeInfo_id_Results, error) {
-	p, err := f.Future.Ptr()
-	return NodeInfo_id_Results(p.Struct()), err
-}
-
-type NodeInfo_channel_Params capnp.Struct
-
-// NodeInfo_channel_Params_TypeID is the unique identifier for the type NodeInfo_channel_Params.
-const NodeInfo_channel_Params_TypeID = 0xdb920c957d5a078c
-
-func NewNodeInfo_channel_Params(s *capnp.Segment) (NodeInfo_channel_Params, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return NodeInfo_channel_Params(st), err
-}
-
-func NewRootNodeInfo_channel_Params(s *capnp.Segment) (NodeInfo_channel_Params, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0})
-	return NodeInfo_channel_Params(st), err
-}
-
-func ReadRootNodeInfo_channel_Params(msg *capnp.Message) (NodeInfo_channel_Params, error) {
-	root, err := msg.Root()
-	return NodeInfo_channel_Params(root.Struct()), err
-}
-
-func (s NodeInfo_channel_Params) String() string {
-	str, _ := text.Marshal(0xdb920c957d5a078c, capnp.Struct(s))
-	return str
-}
-
-func (s NodeInfo_channel_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
-	return capnp.Struct(s).EncodeAsPtr(seg)
-}
-
-func (NodeInfo_channel_Params) DecodeFromPtr(p capnp.Ptr) NodeInfo_channel_Params {
-	return NodeInfo_channel_Params(capnp.Struct{}.DecodeFromPtr(p))
-}
-
-func (s NodeInfo_channel_Params) ToPtr() capnp.Ptr {
-	return capnp.Struct(s).ToPtr()
-}
-func (s NodeInfo_channel_Params) IsValid() bool {
-	return capnp.Struct(s).IsValid()
-}
-
-func (s NodeInfo_channel_Params) Message() *capnp.Message {
-	return capnp.Struct(s).Message()
-}
-
-func (s NodeInfo_channel_Params) Segment() *capnp.Segment {
-	return capnp.Struct(s).Segment()
-}
-
-// NodeInfo_channel_Params_List is a list of NodeInfo_channel_Params.
-type NodeInfo_channel_Params_List = capnp.StructList[NodeInfo_channel_Params]
-
-// NewNodeInfo_channel_Params creates a new list of NodeInfo_channel_Params.
-func NewNodeInfo_channel_Params_List(s *capnp.Segment, sz int32) (NodeInfo_channel_Params_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 0}, sz)
-	return capnp.StructList[NodeInfo_channel_Params](l), err
-}
-
-// NodeInfo_channel_Params_Future is a wrapper for a NodeInfo_channel_Params promised by a client call.
-type NodeInfo_channel_Params_Future struct{ *capnp.Future }
-
-func (f NodeInfo_channel_Params_Future) Struct() (NodeInfo_channel_Params, error) {
-	p, err := f.Future.Ptr()
-	return NodeInfo_channel_Params(p.Struct()), err
-}
-
-type NodeInfo_channel_Results capnp.Struct
-
-// NodeInfo_channel_Results_TypeID is the unique identifier for the type NodeInfo_channel_Results.
-const NodeInfo_channel_Results_TypeID = 0xf1fdeb63c6e87042
-
-func NewNodeInfo_channel_Results(s *capnp.Segment) (NodeInfo_channel_Results, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return NodeInfo_channel_Results(st), err
-}
-
-func NewRootNodeInfo_channel_Results(s *capnp.Segment) (NodeInfo_channel_Results, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return NodeInfo_channel_Results(st), err
-}
-
-func ReadRootNodeInfo_channel_Results(msg *capnp.Message) (NodeInfo_channel_Results, error) {
-	root, err := msg.Root()
-	return NodeInfo_channel_Results(root.Struct()), err
-}
-
-func (s NodeInfo_channel_Results) String() string {
-	str, _ := text.Marshal(0xf1fdeb63c6e87042, capnp.Struct(s))
-	return str
-}
-
-func (s NodeInfo_channel_Results) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
-	return capnp.Struct(s).EncodeAsPtr(seg)
-}
-
-func (NodeInfo_channel_Results) DecodeFromPtr(p capnp.Ptr) NodeInfo_channel_Results {
-	return NodeInfo_channel_Results(capnp.Struct{}.DecodeFromPtr(p))
-}
-
-func (s NodeInfo_channel_Results) ToPtr() capnp.Ptr {
-	return capnp.Struct(s).ToPtr()
-}
-func (s NodeInfo_channel_Results) IsValid() bool {
-	return capnp.Struct(s).IsValid()
-}
-
-func (s NodeInfo_channel_Results) Message() *capnp.Message {
-	return capnp.Struct(s).Message()
-}
-
-func (s NodeInfo_channel_Results) Segment() *capnp.Segment {
-	return capnp.Struct(s).Segment()
-}
-func (s NodeInfo_channel_Results) Chan() (string, error) {
-	p, err := capnp.Struct(s).Ptr(0)
-	return p.Text(), err
-}
-
-func (s NodeInfo_channel_Results) HasChan() bool {
-	return capnp.Struct(s).HasPtr(0)
-}
-
-func (s NodeInfo_channel_Results) ChanBytes() ([]byte, error) {
-	p, err := capnp.Struct(s).Ptr(0)
-	return p.TextBytes(), err
-}
-
-func (s NodeInfo_channel_Results) SetChan(v string) error {
-	return capnp.Struct(s).SetText(0, v)
-}
-
-// NodeInfo_channel_Results_List is a list of NodeInfo_channel_Results.
-type NodeInfo_channel_Results_List = capnp.StructList[NodeInfo_channel_Results]
-
-// NewNodeInfo_channel_Results creates a new list of NodeInfo_channel_Results.
-func NewNodeInfo_channel_Results_List(s *capnp.Segment, sz int32) (NodeInfo_channel_Results_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[NodeInfo_channel_Results](l), err
-}
-
-// NodeInfo_channel_Results_Future is a wrapper for a NodeInfo_channel_Results promised by a client call.
-type NodeInfo_channel_Results_Future struct{ *capnp.Future }
-
-func (f NodeInfo_channel_Results_Future) Struct() (NodeInfo_channel_Results, error) {
-	p, err := f.Future.Ptr()
-	return NodeInfo_channel_Results(p.Struct()), err
-}
-
-const schema_8dcfa60b52844164 = "x\xda\x9cU]h\x1cU\x14>\xe7\xde\xf9\xe9\x9al" +
-	"w/\x13K\x1b\xc1\xb5\xcb\x16\xb4\xba\xb5I\x14M%" +
-	"d\x1a\xac\x12\x0b\xb2\xb3\xf8\xa0\xa2\xe0dw\xd2n\xbb" +
-	";\xbb\x9d\x9dM\xfd!D\xab\x10\xc5\x16Q\x91j\xfd" +
-	"\xc3\xaa\x05_\xa4AE}\xb0R\xa4Q\xa9\xa0 B" +
-	"5\xf4\xc1b@\x9b\x87\xd8\x141-\xd4\x91;;3" +
-	";\x9b\xdd\xb5\xd2\xb7;s~\xbes\xbf\xf3\x9ds7" +
-	"\xbfMT\xa1/\xba(\x03\xd1\x1e\x12%\xe7\xab\x83S" +
-	"w\x7f\xfdc\xf74\xb0\x1e\x04\x10d\x00\xe54]\x02" +
-	"\xc1yw\xef\x93\xd2\xee\x85\xedo\x00\x8b#\x80\x88\xdc" +
-	"r\x9c\x9e\x01TN\xd0a@\xe7\xd6=\xcf\xebG\xd2" +
-	"w}\x08\xac\x0b\x9d\xfc\xd6g\xb2]G\xbe?\x00\"" +
-	"\xe1~\xf3t\x9f\xf2\x07\xad\x9f\xf6\x02:/\x9c\xffh" +
-	"]mg\xe4\xa8\x97\xcb\xf5\xd9*\x9c\x05T\xb6\x09\xdc" +
-	"~\xfa\xd3\xb9S\xf1\xd9\xe5\x990\xd6\x8c\xc0\xb1>\x11" +
-	"8\xd6\x07\x9f\xaf\xb9\xe9\x89\xc2\xcd_\x84\xec\x03?\x09" +
-	"\x04\x01\x95\x9f]\x87\x93C\x8f\xc4\x93\x95\x8f\xbf\x04\xd6" +
-	"E\x1b\xc5\x00*\x11q\x9f\x12\x15\xb9\x7fD\x9cF\xe5" +
-	"\x02?:O?0\xf9\xd6\xb1\xc5\xe5\xd90\xdc\xaf\"" +
-	"\x87\x9b\x17y6\xeb\xe4m\xaf\x0f\xbc|\xd57\xa0\xf5" +
-	"\xa0OJD\xba\x08\xa8D%n?\xb5=\xb7\xfe\xd5" +
-	"Gs?\x84\xe3\xd3\xd2/\x80J\x9fk\xdf/?8" +
-	"\xf9J\xf7Ks\x0dN\x074\xa9\x17Ap\x0e\xbd\xa7" +
-	"G\x06\xbf\x13\x17\xc2\x91\x83\x12'b\xc8\x8d<z\xe3" +
-	"~\xb5\xfc\xd9\xe0\xb9\xb0\xbd$-\x01*{\\\xfbo" +
-	"\xd7\xa6\xef8vp\xcc\xb3\xbb\x85\xbd(\x9d\x01\xc1\x19" +
-	"\xa9\xfc>\x9b[\xb8t\xae\x0eYg\xa8&%9C" +
-	"\x93n\xe4\xf8ug\xff\xdeq\xb8\xbc\x14\xce\xfc\xa6\x8b" +
-	"\xfc\x8ek\xffS\xffg4\xb3<w\xbe\x85\xc1\xe3\xd2" +
-	"a\xe5[\x89\xbb\x9f\x90\xa6\x95\xabeN\xe0\xe3\xf7O" +
-	"\xac\xbf\xe69\xfd\xafP\x19\x97\xa4\x8b 8\x8b\xcf\xae" +
-	"\xb9o\xc3\xa1\xc5\x0bM\xcc\xba(\xf3\xd20\xa4\x1dK" +
-	"\x1f\xb77\xe5\xf4\x0a1+[\xee-\xe7\x8dQs\xbc" +
-	"\xbc\xa9\x90Oe\x12\xba\xa5\x97\xaaM\xf6,?Wj" +
-	"v*kTkr\xd1\xaej\x02\x15\x00\x04\x04`\xd1" +
-	"~\x00m\x15E\xad\x87`\xc2\xb0\xac\xb2\x85\xdd@\xb0" +
-	"\x9b7\xcfK\x81fe\xcb\xa8m\x94 \x83\xa8\xad\x0a" +
-	"\"oH\x02h)\x8a\xdaf\x82\x0c\xd1m0K\xf3" +
-	"t\xd7S\xd4n!(\xef6\x1e\xc3(\x10\x8c\x02&" +
-	"&\xf4b\xcd\xf0\xbfZ\xab\xdbU.\x98\xbc\xbcX\x8d" +
-	"\x97\x17\x02\xe9\xf7@\xd4\x10\xc8\x10\xffy;E\xedN" +
-	"\x82\x09\xb3\x9c7\xaa\xb8\x1a0C\x11Y\x83}@\xfe" +
-	"\xb3\xc3\x95\x02\xdc\xaaa\xe6S\x19\xdd\x92\xf5R\x13+" +
-	"\xc9\x06+r\xa9\xba\xa3\xa5p\xea'(\x19\xa51\xc3" +
-	"\xaa\xba\xd4\x16\xed*\x84\x93\x8cxIR\x04\xa7<\xbf" +
-	"\x8e\x856\xb1\xcd3\xbbl\xaf\xa5bh\xca\xd0\x9f~" +
-	"6\xb3\x11\x08{_F\x0ct\x82\xbe\xe0\xd9k\xfd@" +
-	"\xd8\x01\x19I\xb0\x0c\xd0\x97,{\x8a\xc7\xd5d\xa4\xc1" +
-	"\xe4\xa1\xbf\x9dX!\x09\x84=,\xa3\x10\xcc\x06\xfaC" +
-	"\xc64\x1e\xb7MF1\x10,\xfa\x9b\x84\x0d\x8e\x00a" +
-	"i9\xc6[\xa8b\xa2h\xe8\x13\x86\x8a1\xce\xac\x8a" +
-	"r\xa5f\xab\x18+\x16\xaa\xb6\x1a\x90\xa0b\x06;i" +
-	"\xa0M/\xee\x01\xd0\xba)jk\x09:\xa6'u\x00" +
-	"X\xc1![\xd1\xde\xf0Pd\x87\xeb\xdd\x09g\xedm" +
-	"t\x98\x16\xf2\x18\x01\x82\x91v\x0a\xe1s\x93\xd1-\x9d" +
-	"6\x17\xb5\xb1\x11\x1e+\xd8F\x09\xe3\x8d=\x0e\x88\xf1" +
-	"\x15Z\x09\xaa\xc9\xed\xd4M\xd3(\xfa)[\xf18U" +
-	"\x8dI\xe8\xa0\xa6\xf2\xd8.#g\x07jj\xc6^\xdd" +
-	"\xee\x1an[RY#\xd1B\xc4\xe5\x17@sm^" +
-	"\x87\xfe\xfbz\xed6M\x982\xeew\x99\xa9l\xc7\xc1" +
-	"\xff[Vn5\xb29^\xae/,>B\xfe\xe3\x8c" +
-	"\xfe\x8b\xc4\xfaz\x81\xb0\x0d|\x84\xfcG\x06\xfd\xd5\xcf" +
-	"\xd6qIGeZ\xc8\xab8\xe5]\xa9\x83h\xfd\xf9" +
-	"\x1f\xcet\xd8\xbbu\xe23z\xcc\xbaRY\xff\x1b\x00" +
-	"\x00\xff\xff9\xb7D\xcd"
+const schema_8dcfa60b52844164 = "x\xda\x9cT]\x88\x1bU\x18\xfd\xce\xbd\xf3\xd3e\xbb" +
+	"M.S\x0aV1vI\xc1V\xa3\xbb[W\xba\xd5" +
+	"\xb2\xd3\"B)B&\xf8\xb7\xa0\xd0\xd9\xe4\xb6\xa6\xcd" +
+	"_3\x93\xadZ\x16\xa5\xba`P\xf1I\x94b\x05\xb5" +
+	"\x14\xfbP\xad(h\x1fZ\xf5\xc1\xfa\xa0\xa2\xf5\xa9(" +
+	"\x82\x14Ah\x1f\x96\xad\x14\xab/#w\x9a\x99L\xdc" +
+	"\x04Y\xdf\x929\xf7;\xdf\xb9\xe7;\xdf\x1d+0[" +
+	"\x1b\x1f\xf9\xdd \xe6\xe4u#x\xef\xd0\xf3\xc6\x81+" +
+	"\xbb\xdf\"\x91\x06\x91\x0e\x93\xc8\x9a\xe1\x97\x08\xd6\x93|" +
+	"\x9a\x10\x1c?\xf6\xe1\xaf{\xee}\xf4\xfd\x1b\xb8\xa6\xe0" +
+	"y\xfe#i\xc1\xe4\xc1\x97\xdd\x13\xb9\x07? 1\x8c" +
+	"\xa0\xb4\xe3\xc5\xc2\xf0\x89\xef_%\x9d\xa9\x13.?b" +
+	"I~\xe3\xd7!B\xf0\xda\x1f\x1f\xdf\xd4zj\xe8t" +
+	"\xa7Ix\xe6,\xbfL\xb0\xbe\x0c\xf1_>\xfd\xf9b" +
+	"\xfa\xfc\xf5\x8f\x92\"r\x9a\x121\xae)\x11'\xcf\xac" +
+	"\xbb\xf3p\xf9\xee\xb3\x09|\x8b\xa31\x10\xacG\xc2\x03" +
+	"\xdfl\xdf\x93\x1em|\xf29\x89a\xde\x15C\xb0\x16" +
+	"\xb4#V[\xa9\xde\xb2\xa0}\x0d\xeb\x98n\x12\x05\x8f" +
+	"e\xee\x1f{b\xeb\xe1/\xc8I#\xba\xd4\x82\xfe\x13" +
+	"\xc1j\xeb\x8a\xed\x85\x99\xf9\xb7\xcf-^?\x9f\x94s" +
+	"RWrN\x85\xf8\xc5\xdd\xc5\x0do>]\xfc!\x89" +
+	"\x7f\x17\xd6_\x08\xf1\xa3\xc7\xdd\xa1\xa9o\xf5+I|" +
+	"IW\xd7\xbd\x16\xe2\xa7\xefx\xc5\xae\x7f6\xb5\x94\xc4" +
+	"7\x1aW\x09\xd6&C\xe1\xbf\xdd\x9a\xbb\xef\xdc\x1b\xb3" +
+	"K\x09\xcfw\x19\x97H\x0b\xf6\xdev\xf9\xcf}\xef\xd6" +
+	"\xaf\xf6\xf8d(\xe2\xf1\xb0\xf0\xd9\xc7\xe76\xdc\xdcv" +
+	"\xaf%\x0a\x1d\xe3o\xd2\x82\xc5\x97\xd6=\xbc\xf1\xe8\xe2" +
+	"_\xc9\xc2\xc9\xb0p\xca\x98\xa6\\\xd0t\xf7\xfaw\x15" +
+	"\xdd\x06\xab5\xb6\x15\xd4\xefF\xcb\xcf\x16\xa4\xd72+" +
+	"\xbe\xe7h\\#\xd2@$F&\x88\x9cU\x1c\xceZ" +
+	"\x86\x8cl6\xebM\xac&\x86\xd5\x84\xe5\x14\xe5R6" +
+	"\xef6\xdd*\xbc\x18C\xad\xb1m\x97/\xab\x94\x07\x9c" +
+	"U1\xeb\xa6Q\"'\xcb\xe1\x8c1\x08`\xad\x1a\x8a" +
+	"\xc8\xa9V\xb7s8\xf70\x98\x07\xe43\x18!\x86\x11" +
+	"Bf\xce\xad\xb4d\xf4oy\xdb\xfd\xf5rMIO" +
+	"\xb5\x94\xf4D\x93\x89N\x13;\xd1d\xbb\xfa\xb8\x95\xc3" +
+	"y\x80!S\xab\x97\xa4\x875\x84<\x07D7S\x04" +
+	"\xf5\xf1\xbf\xae\xeb\xc9Zxa\xd3\xad\xf686\xdau" +
+	"\xcc\xacz\xfb\x96\x09\xe7\x11AUVge\xd3\x0bm" +
+	"\xaf\xf8\x1e%IvvH\xb2\x0c\xcfu\xce\x0d\x14\xda" +
+	"\xe3\xb6b\x0e\xdd\xbe\x85\xebDq\xb2\x11m\xa4\xb8\xb0" +
+	"\x99\x98\xf8\xca\x04\xe2\x8c \x8a\xa783AL\x9c2" +
+	"\xc1\xe2\x05E\x94@\xf1\x8e\xaa{\xdd\x04\x8f\xb7\x01\xd1" +
+	"S\"\xda\xa3\xc4\xc4\xbc\x09-N2\xa2\x95\x10\x07U" +
+	"\x9d4\xa1\xc7aE\xb4\xddbf'1\xf1\x90\x09#" +
+	"~u\x10\xad\xaa\xd8\xb1\x9e\x98\x984Sj\xbc62" +
+	"\x15\xe9\xceI\x1b)\xe5\xba\x0d\xb3\xd1\xf2m\xa4*e" +
+	"\xcf\xb7c\x83l\xf0r\xc9F\x1e\xfd\xb3\x19\xda\xcc{" +
+	"\xd3\xbd\xbe;+^.a\x88\x18\x86\x06f\xac\xcf\xac" +
+	"7w\xebS*M\xff\x1a\x8e\xe8\xc7\xa56M\xed\x09" +
+	"\x1fLU\xf6e\x15\xe9\xee\x8bK@\xba\x1f\x95\xba\x7f" +
+	"7\xfa\x03\xe2S\x9f\xdd/\x8b~\x1c\x9f^\xda5}" +
+	"i\x95\xd7\xd9\x82\xccx\xad\xff\xff\x1a\x84\xda:\x96\x0d" +
+	"X\x9e~\xcaW\xd0!\xda\x9f\xe9\xf0\xd5\xf1\x06\xdd#" +
+	"\xef\xa6\x9a+\x1e\xdb?\x01\x00\x00\xff\xff\x8e\xc3\xdb\x84"
 
 func RegisterSchema(reg *schemas.Registry) {
 	reg.Register(&schemas.Schema{
 		String: schema_8dcfa60b52844164,
 		Nodes: []uint64{
-			0x870cd3c7477f97c3,
 			0x9c4beb6b068077a3,
+			0xa8563660e0af9da4,
 			0xae462da6618b7135,
 			0xb009687519b3f38f,
 			0xb1f8c610d8dbb7dd,
 			0xbd2f697b2c16b9a9,
 			0xbfb4702210603dcb,
+			0xc07b385c303c1f57,
 			0xc6f8efbe9e7d5983,
-			0xc80a93339b37cb72,
 			0xd063789821634bd8,
-			0xdb920c957d5a078c,
 			0xeb05cc390961a49a,
 			0xf139b86f408c2bb0,
 			0xf16297be3b2d1ee4,
-			0xf1fdeb63c6e87042,
 			0xf26fa267f7ea2066,
-			0xf3dbf85049fe61f0,
 			0xf561891b2176587a,
 			0xf9ef9a25541688ef,
 		},

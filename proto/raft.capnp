@@ -5,13 +5,15 @@ using Go = import "/go.capnp";
 $Go.package("api");
 $Go.import("github.com/mikelsr/raft-capnp/proto/api");
 
+# TODO replace Raft with Node	s, err := f.Future.Struct()
 interface Raft {
-    join        @0 (nodeInfo :NodeInfo) -> (nodes :List(NodeInfo), error :Text);
-    leave       @1 (nodeInfo :NodeInfo) -> (error :Text);
-    send        @2 (msg :Data)          -> (error :Text);
-    put         @3 (item :Item)         -> (error :Text);
-    list        @4 ()                   -> (objects :List(Item));
-    members     @5 ()                   -> (members :List(NodeInfo));
+    join    @0 (node :Raft) -> (nodes :List(Raft), error :Text);
+    leave   @1 (node :Raft) -> (error :Text);
+    send    @2 (msg  :Data) -> (error :Text);
+    put     @3 (item :Item) -> (error :Text);
+    list    @4 ()           -> (objects :List(Item));
+    members @5 ()           -> (members :List(Raft));
+    id      @6 ()           -> (id :UInt64);
 }
 
 struct Item {
@@ -19,7 +21,3 @@ struct Item {
     value   @1 :Data;
 }
 
-interface NodeInfo {
-    id      @0 () -> (id :UInt64);
-    channel @1 () -> (chan :Text);  # TODO replace with WW channel
-}

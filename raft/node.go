@@ -12,6 +12,9 @@ import (
 
 // Node implements api.Raft_Server.
 type Node struct {
+	ID uint64
+	Cluster
+
 	// raft specifics
 	raft      raft.Node
 	queue     []raftpb.Message
@@ -49,13 +52,18 @@ func (n *Node) Join(ctx context.Context, call api.Raft_join) error {
 }
 
 // join is the capnp-free logic of Join.
-func (n *Node) join(ctx context.Context, info Info) ([]Info, error) {
+func (n *Node) join(ctx context.Context, node api.Raft) ([]api.Raft, error) {
+
+	id, err := rpcGetId(ctx, node)
+	if err != nil {
+		return nil, err
+	}
 
 	cc := raftpb.ConfChange{
-		ID:     info.ID,
+		ID:     id,
 		Type:   raftpb.ConfChangeAddNode,
-		NodeID: info.ID,
-		// TODO how can we pass our channel to the remote peers?
+		NodeID: id,
+		// TODO con can nodes be propagated?
 		// Context: marshaledCap,
 	}
 
@@ -65,7 +73,7 @@ func (n *Node) join(ctx context.Context, info Info) ([]Info, error) {
 
 	// TODO is the map necessary?
 	peers := n.Cluster.Peers()
-	nodes := make([]Info, len(peers))
+	nodes := make([]api.Raft, len(peers))
 	i := 0
 	for _, node := range peers {
 		nodes[i] = node
@@ -81,7 +89,8 @@ func (n *Node) Leave(ctx context.Context, call api.Raft_leave) error {
 	if err != nil {
 		return err
 	}
-	if err = n.leave(ctx, n.Info()); err != nil {
+	node := call.Args().Node()
+	if err = n.leave(ctx, node); err != nil {
 		res.SetError(err.Error())
 		return err
 	}
@@ -89,11 +98,16 @@ func (n *Node) Leave(ctx context.Context, call api.Raft_leave) error {
 }
 
 // leave is the capnp-free logic of Leave.
-func (n *Node) leave(ctx context.Context, info Info) error {
+func (n *Node) leave(ctx context.Context, node api.Raft) error {
+	id, err := rpcGetId(ctx, node)
+	if err != nil {
+		return err
+	}
+
 	cc := raftpb.ConfChange{
-		ID:     info.ID,
+		ID:     id,
 		Type:   raftpb.ConfChangeRemoveNode,
-		NodeID: info.ID,
+		NodeID: id,
 	}
 	return n.raft.ProposeConfChange(ctx, cc)
 }
@@ -179,11 +193,13 @@ func (n *Node) Members(ctx context.Context, call api.Raft_members) error {
 	return nil
 }
 
-func (n *Node) Info() Info {
-	return Info{
-		ID:   n.Id,
-		Chan: nil, // TODO create a channel cap
+func (n *Node) Id(ctx context.Context, call api.Raft_id) error {
+	res, err := call.AllocResults()
+	if err != nil {
+		return err
 	}
+	res.SetId(n.ID)
+	return nil
 }
 
 // TODO: send in the original repo
