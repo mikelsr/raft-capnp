@@ -3,6 +3,8 @@ package raft
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -368,15 +370,52 @@ func (n *Node) broadcast(ctx context.Context, messages []raftpb.Message) {
 	}
 }
 
-// store a log entry.
-func (n *Node) store(hardState raftpb.HardState, entries []raftpb.Entry, snapshot raftpb.Snapshot) {
-	n.storage.Append(entries)
+func (n *Node) retrieve(id uint64, nodeC chan api.Raft, errC chan error) {
+	node, err := n.RaftNodeRetrieval(id)
+	if err != nil {
+		errC <- err
+	} else {
+		nodeC <- node
+	}
+}
 
-	if !raft.IsEmptyHardState(hardState) {
-		n.storage.SetHardState(hardState)
+func (n *Node) retrieveWithTimeout(id uint64, timeout time.Duration) (api.Raft, error) {
+	var (
+		err  error
+		node api.Raft
+	)
+	errC := make(chan error, 1)
+	nodeC := make(chan api.Raft, 1)
+
+	select {
+	case node = <-nodeC:
+		break
+	case err = <-errC:
+		break
+	case <-time.After(timeout):
+		err = fmt.Errorf("timed out after %s", timeout.String())
+	}
+	return node, err
+}
+
+// Register a new Node in the cluster.
+func (n *Node) Register(ctx context.Context, id uint64) error {
+	var (
+		err  error
+		node api.Raft
+	)
+
+	for i := 0; i < RetrievalRetries; i++ {
+		node, err = n.retrieveWithTimeout(id, RetrievalTimeout)
+		if err == nil {
+			break
+		}
 	}
 
-	if !raft.IsEmptySnap(snapshot) {
-		n.storage.ApplySnapshot(snapshot)
+	if err != nil {
+		return err
 	}
+
+	n.Cluster.AddPeer(ctx, node)
+	return nil
 }
