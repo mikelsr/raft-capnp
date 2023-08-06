@@ -268,7 +268,7 @@ func (n *Node) doReady(ctx context.Context, ready raft.Ready) error {
 		case raftpb.EntryNormal:
 			err = n.addEntry(entry)
 		case raftpb.EntryConfChange:
-			err = n.addConfChange(entry)
+			err = n.addConfChange(ctx, entry)
 		default:
 			err = fmt.Errorf(
 				"unrecognized entry type: %s", raftpb.EntryType_name[int32(entry.Type)])
@@ -370,7 +370,7 @@ func (n *Node) addEntry(entry raftpb.Entry) error {
 	return nil
 }
 
-func (n *Node) addConfChange(entry raftpb.Entry) error {
+func (n *Node) addConfChange(ctx context.Context, entry raftpb.Entry) error {
 	if entry.Type != raftpb.EntryConfChange || entry.Data == nil {
 		return nil
 	}
@@ -386,15 +386,35 @@ func (n *Node) addConfChange(entry raftpb.Entry) error {
 
 	switch cc.Type {
 	case raftpb.ConfChangeAddNode:
-
+		err = n.addNode(ctx, cc)
 	case raftpb.ConfChangeRemoveNode:
-
+		err = n.removeNode(ctx, cc)
 	default:
 		err = fmt.Errorf(
 			"unrecognized conf change type: %s",
 			raftpb.ConfChangeType_name[int32(cc.Type)])
 	}
 	return err
+}
+
+func (n *Node) addNode(ctx context.Context, cc raftpb.ConfChange) error {
+	return n.Register(ctx, cc.NodeID)
+}
+
+func (n *Node) removeNode(ctx context.Context, cc raftpb.ConfChange) error {
+	// Unregister the node.
+	defer n.Unregister(ctx, cc.NodeID)
+
+	// Leader, self, steps down.
+	if n.ID == cc.NodeID && n.ID == n.raft.Status().Lead {
+		n.raft.Stop()
+		return nil
+	}
+	// Other leader steps down.
+	if cc.NodeID == n.raft.Status().Lead {
+		return n.raft.Campaign(ctx)
+	}
+	return nil
 }
 
 // TODO find a more appropiate name
@@ -452,7 +472,7 @@ func (n *Node) retrieveWithTimeout(ctx context.Context, id uint64, timeout time.
 	return node, err
 }
 
-// Register a new Node in the cluster.
+// Register a new node in the cluster.
 func (n *Node) Register(ctx context.Context, id uint64) error {
 	var (
 		err  error
@@ -472,4 +492,14 @@ func (n *Node) Register(ctx context.Context, id uint64) error {
 
 	n.Cluster.AddPeer(ctx, node)
 	return nil
+}
+
+// Unregister a node.
+func (n *Node) Unregister(ctx context.Context, id uint64) {
+	if n.ID == id {
+		return
+	}
+
+	// TODO release capability
+	n.Cluster.RemovePeer(id)
 }
