@@ -18,8 +18,9 @@ import (
 type Node struct {
 	ID uint64
 	*Cluster
-	items ItemMap
-	queue MessageQueue
+	items  ItemMap
+	queue  MessageQueue
+	logger raft.Logger
 
 	// Raft specifics
 	Raft raft.Node
@@ -45,6 +46,7 @@ func New() *Node {
 		Cluster: NewCluster(),
 		items:   ItemMap{},
 		queue:   make(MessageQueue),
+		logger:  DefaultLogger,
 
 		pauseChan: make(chan bool),
 		ticker:    *time.NewTicker(time.Second),
@@ -106,6 +108,7 @@ func (n *Node) Start(ctx context.Context) {
 func (n *Node) lateConfig() {
 	n.Config.ID = n.ID
 	n.Config.Storage = n.Storage
+	n.Config.Logger = n.logger
 }
 
 // init the underlying Raft node and register self in cluster.

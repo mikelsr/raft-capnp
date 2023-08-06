@@ -31,3 +31,8 @@ func (n *Node) WithRaftConfig(config *raft.Config) *Node {
 	n.Config = config
 	return n
 }
+
+func (n *Node) WithLogger(logger raft.Logger) *Node {
+	n.logger = logger
+	return n
+}
