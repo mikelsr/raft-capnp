@@ -52,19 +52,6 @@ func New() *Node {
 	}
 }
 
-// init the underlying Raft node and register self in cluster.
-func (n *Node) init() {
-	peers := []raft.Peer{{ID: n.ID}}
-	n.Cluster.addPeer(n.ID, api.Raft_ServerToClient(n))
-	for k := range n.Cluster.Peers() {
-		if k == n.ID {
-			continue
-		}
-		peers = append(peers, raft.Peer{ID: k})
-	}
-	n.Raft = raft.StartNode(n.Config, peers)
-}
-
 func (n *Node) Stop(cause error) {
 	if cause == nil {
 		_, file, no, ok := runtime.Caller(1)
@@ -107,6 +94,20 @@ func (n *Node) Start(ctx context.Context) {
 			n.stopChan <- err
 		}
 	}
+}
+
+// init the underlying Raft node and register self in cluster.
+func (n *Node) init() {
+	n.Config.ID = n.ID
+	peers := []raft.Peer{{ID: n.ID}}
+	n.Cluster.addPeer(n.ID, api.Raft_ServerToClient(n))
+	for k := range n.Cluster.Peers() {
+		if k == n.ID {
+			continue
+		}
+		peers = append(peers, raft.Peer{ID: k})
+	}
+	n.Raft = raft.StartNode(n.Config, peers)
 }
 
 func (n *Node) doReady(ctx context.Context, ready raft.Ready) error {
