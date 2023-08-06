@@ -4,7 +4,13 @@ import (
 	"errors"
 
 	"github.com/mikelsr/raft-capnp/proto/api"
+	"go.etcd.io/raft/v3"
+	"go.etcd.io/raft/v3/raftpb"
 )
+
+// RaftStore performs an store on the given storage. Storage will be of the type
+// supplied to the node.
+type RaftStore func(storage raft.Storage, hardState raftpb.HardState, entries []raftpb.Entry, snapshot raftpb.Snapshot) error
 
 // RaftNodeRetrieval returns the raft node capability corresponding to a
 // node ID. It MUST be implemented and supplied to Node.

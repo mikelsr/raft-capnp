@@ -1,18 +1,29 @@
 package raft
 
-import "go.etcd.io/raft/v3/raftpb"
+import (
+	"fmt"
 
-// Storage expands raft.Storage to include the methods found in raft.MemoryStorage.
-type Storage interface {
-	Append(entries []raftpb.Entry) error
-	ApplySnapshot(snap raftpb.Snapshot) error
-	Compact(compactIndex uint64) error
-	CreateSnapshot(i uint64, cs *raftpb.ConfState, data []byte) (raftpb.Snapshot, error)
-	Entries(lo uint64, hi uint64, maxSize uint64) ([]raftpb.Entry, error)
-	FirstIndex() (uint64, error)
-	InitialState() (raftpb.HardState, raftpb.ConfState, error)
-	LastIndex() (uint64, error)
-	SetHardState(st raftpb.HardState) error
-	Snapshot() (raftpb.Snapshot, error)
-	Term(i uint64) (uint64, error)
+	"go.etcd.io/raft/v3"
+	"go.etcd.io/raft/v3/raftpb"
+)
+
+func DefaultStorage() raft.Storage {
+	return raft.NewMemoryStorage()
+}
+
+func DefaultStoreFunc(storage raft.Storage, hardState raftpb.HardState, entries []raftpb.Entry, snapshot raftpb.Snapshot) error {
+	s, ok := storage.(*raft.MemoryStorage)
+	if !ok {
+		return fmt.Errorf("failed to cast %s to raft.MemoryStorage")
+	}
+	s.Append(entries)
+
+	if !raft.IsEmptyHardState(hardState) {
+		s.SetHardState(hardState)
+	}
+
+	if !raft.IsEmptySnap(snapshot) {
+		s.ApplySnapshot(snapshot)
+	}
+	return nil
 }
