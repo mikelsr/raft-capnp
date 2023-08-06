@@ -16,6 +16,7 @@ import (
 type Node struct {
 	ID uint64
 	Cluster
+	items ItemMap
 
 	// raft specifics
 	raft    raft.Node
@@ -301,7 +302,53 @@ func (n *Node) setPaused(pause bool) {
 	n.pause = pause
 }
 
-// TODO: send in the original repo
+func (n *Node) addEntry(entry raftpb.Entry) error {
+	if entry.Type != raftpb.EntryNormal || entry.Data == nil {
+		return nil
+	}
+
+	item := &Item{}
+	if err := item.Unmarshal(entry.Data); err != nil {
+		return err
+	}
+
+	if n.OnNewValue != nil {
+		n.OnNewValue(*item)
+	}
+
+	n.items.Put(*item)
+
+	return nil
+}
+
+func (n *Node) addConfChange(entry raftpb.Entry) error {
+	if entry.Type != raftpb.EntryConfChange || entry.Data == nil {
+		return nil
+	}
+
+	var (
+		err error
+		cc  raftpb.ConfChange
+	)
+
+	if err = cc.Unmarshal(entry.Data); err != nil {
+		return err
+	}
+
+	switch cc.Type {
+	case raftpb.ConfChangeAddNode:
+
+	case raftpb.ConfChangeRemoveNode:
+
+	default:
+		err = fmt.Errorf(
+			"unrecognized conf change type: %s",
+			raftpb.ConfChangeType_name[int32(cc.Type)])
+	}
+	return err
+}
+
+// TODO find a more appropiate name
 func (n *Node) broadcast(ctx context.Context, messages []raftpb.Message) {
 	peers := n.Cluster.Peers()
 

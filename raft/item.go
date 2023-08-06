@@ -1,7 +1,10 @@
 package raft
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
+	"sync"
 
 	"capnproto.org/go/capnp/v3"
 	"github.com/mikelsr/raft-capnp/proto/api"
@@ -63,4 +66,25 @@ func ItemToApi(i Item) (api.Item, error) {
 	err = item.SetValue(i.Value)
 
 	return item, err
+}
+
+type ItemMap struct {
+	sync.Map
+}
+
+func (i *ItemMap) Put(item Item) {
+	sum := md5.Sum(item.Key)
+	k := hex.EncodeToString(sum[:])
+	i.Map.Store(k, item)
+}
+
+func (i *ItemMap) Get(key []byte) (Item, bool) {
+	sum := md5.Sum(key)
+	k := hex.EncodeToString(sum[:])
+	v, found := i.Map.Load(k)
+	if !found {
+		return Item{}, found
+	}
+	item, ok := v.(Item)
+	return item, ok
 }
