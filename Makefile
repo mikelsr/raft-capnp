@@ -4,9 +4,20 @@ ifeq ($(origin GOPATH), undefined)
     GOPATH := $(HOME)/go
 endif
 
+# Use gotip if available
+ifeq (, $(shell which gotip))
+	GO := go
+else
+	GO := gotip
+endif
+
+api_dir := ./proto/api
+example_file := ./example/example
+wasm_file := ./test/wasm/test.wasm
+
 .PHONY: all test clean example
 
-all: capnp test
+all: capnp example test
 
 clean: capnp-clean example-clean
 
@@ -16,21 +27,21 @@ capnp: capnp-raft
 #        on the GOPATH.
 
 capnp-raft:
-	@mkdir -p proto/api
-	@capnp compile -I$(GOPATH)/src/capnproto.org/go/capnp/v3/std -ogo:proto/api --src-prefix=proto proto/raft.capnp
+	@mkdir -p ${api_dir}
+	@capnp compile -I$(GOPATH)/src/capnproto.org/go/capnp/v3/std -ogo:${api_dir} --src-prefix=proto proto/raft.capnp
 
 capnp-clean:
-	@rm -rf proto/api
+	@rm -rf ${api_dir}
 
 example:
-	@gotip build -o ./example/example ./example
+	@${GO} build -o ${example_file} ./example
 
 example-clean:
-	@rm ./example/example
+	@rm -rf ${example_file}
 
 test: test-wasm example example-clean
 
 # Test that everything can be compiled to wasm
 test-wasm:
-	@env GOOS=wasip1 GOARCH=wasm gotip build -o ./test/wasm/test.wasm ./test/wasm
-	@rm ./test/wasm/test.wasm
+	@env GOOS=wasip1 GOARCH=wasm ${GO} build -o ${wasm_file} ./test/wasm
+	@rm ${wasm_file}
