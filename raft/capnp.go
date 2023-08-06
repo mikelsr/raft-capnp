@@ -9,7 +9,7 @@ import (
 
 // Cap is a Capnp capability.
 type Cap interface {
-	api.Raft | api.NodeInfo
+	api.Raft
 }
 
 // PointerList creates a list of pointers.
