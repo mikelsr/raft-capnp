@@ -22,6 +22,7 @@ type Node struct {
 	Cluster
 }
 
+// Join a Raft cluster.
 func (n *Node) Join(ctx context.Context, call api.Raft_join) error {
 	res, err := call.AllocResults()
 	if err != nil {
@@ -47,7 +48,7 @@ func (n *Node) Join(ctx context.Context, call api.Raft_join) error {
 	return nil
 }
 
-// call with n.Info()
+// join is the capnp-free logic of Join.
 func (n *Node) join(ctx context.Context, info Info) ([]Info, error) {
 
 	cc := raftpb.ConfChange{
@@ -74,6 +75,7 @@ func (n *Node) join(ctx context.Context, info Info) ([]Info, error) {
 	return nodes, nil
 }
 
+// Leave a Raft cluster.
 func (n *Node) Leave(ctx context.Context, call api.Raft_leave) error {
 	res, err := call.AllocResults()
 	if err != nil {
@@ -86,7 +88,7 @@ func (n *Node) Leave(ctx context.Context, call api.Raft_leave) error {
 	return nil
 }
 
-// call with n.Info()
+// leave is the capnp-free logic of Leave.
 func (n *Node) leave(ctx context.Context, info Info) error {
 	cc := raftpb.ConfChange{
 		ID:     info.ID,
@@ -96,6 +98,7 @@ func (n *Node) leave(ctx context.Context, info Info) error {
 	return n.raft.ProposeConfChange(ctx, cc)
 }
 
+// Send advances the raft state machine with the received message.
 func (n *Node) Send(ctx context.Context, call api.Raft_send) error {
 	res, err := call.AllocResults()
 	if err != nil {
@@ -113,6 +116,7 @@ func (n *Node) Send(ctx context.Context, call api.Raft_send) error {
 	return nil
 }
 
+// send is the capnp-free logic of Send.
 func (n *Node) send(ctx context.Context, msgData []byte) error {
 	var msg *raftpb.Message
 	var err error
@@ -131,6 +135,7 @@ func (n *Node) send(ctx context.Context, msgData []byte) error {
 	return err
 }
 
+// Put proposes a new value.
 func (n *Node) Put(ctx context.Context, call api.Raft_put) error {
 	res, err := call.AllocResults()
 	if err != nil {
@@ -156,6 +161,7 @@ func (n *Node) Put(ctx context.Context, call api.Raft_put) error {
 	return nil
 }
 
+// put is the capnp-free logic of Put.
 func (n *Node) put(ctx context.Context, item Item) error {
 	itemData, err := item.Marshal()
 	if err != nil {
