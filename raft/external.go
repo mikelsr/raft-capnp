@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"context"
 	"errors"
 
 	"github.com/mikelsr/raft-capnp/proto/api"
@@ -14,11 +15,11 @@ type RaftStore func(storage raft.Storage, hardState raftpb.HardState, entries []
 
 // RaftNodeRetrieval returns the raft node capability corresponding to a
 // node ID. It MUST be implemented and supplied to Node.
-type RaftNodeRetrieval func(uint64) (api.Raft, error)
+type RaftNodeRetrieval func(context.Context, uint64) (api.Raft, error)
 
 // NilRaftNodeRetrieval defines a null behaviour for RaftNodeRetrieval.
 // WARNING: IT WILL MAKE Node FAIL.
-func NilRaftNodeRetrieval(id uint64) (api.Raft, error) {
+func NilRaftNodeRetrieval(ctx context.Context, id uint64) (api.Raft, error) {
 	return api.Raft{}, errors.New("unimplemented")
 }
 

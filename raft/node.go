@@ -417,8 +417,8 @@ func (n *Node) broadcast(ctx context.Context, messages []raftpb.Message) {
 	}
 }
 
-func (n *Node) retrieve(id uint64, nodeC chan api.Raft, errC chan error) {
-	node, err := n.RaftNodeRetrieval(id)
+func (n *Node) retrieve(ctx context.Context, id uint64, nodeC chan api.Raft, errC chan error) {
+	node, err := n.RaftNodeRetrieval(ctx, id)
 	if err != nil {
 		errC <- err
 	} else {
@@ -426,7 +426,7 @@ func (n *Node) retrieve(id uint64, nodeC chan api.Raft, errC chan error) {
 	}
 }
 
-func (n *Node) retrieveWithTimeout(id uint64, timeout time.Duration) (api.Raft, error) {
+func (n *Node) retrieveWithTimeout(ctx context.Context, id uint64, timeout time.Duration) (api.Raft, error) {
 	var (
 		err  error
 		node api.Raft
@@ -434,13 +434,22 @@ func (n *Node) retrieveWithTimeout(id uint64, timeout time.Duration) (api.Raft, 
 	errC := make(chan error, 1)
 	nodeC := make(chan api.Raft, 1)
 
+	// Add a cancel function for timeout/context cases.
+	rCtx, cancel := context.WithCancel(ctx)
+
+	go n.retrieve(rCtx, id, nodeC, errC)
+
 	select {
 	case node = <-nodeC:
 		break
 	case err = <-errC:
 		break
 	case <-time.After(timeout):
+		defer cancel()
 		err = fmt.Errorf("timed out after %s", timeout.String())
+	case <-ctx.Done():
+		defer cancel()
+		err = ctx.Err()
 	}
 	return node, err
 }
