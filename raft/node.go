@@ -96,9 +96,16 @@ func (n *Node) Start(ctx context.Context) {
 	}
 }
 
+// lateConfig performs configuration steps that cannot be done
+// at construction but need to be done before Start.
+func (n *Node) lateConfig() {
+	n.Config.ID = n.ID
+	n.Config.Storage = n.Storage
+}
+
 // init the underlying Raft node and register self in cluster.
 func (n *Node) init() {
-	n.Config.ID = n.ID
+	n.lateConfig()
 	peers := []raft.Peer{{ID: n.ID}}
 	n.Cluster.addPeer(n.ID, api.Raft_ServerToClient(n))
 	for k := range n.Cluster.Peers() {
