@@ -13,6 +13,12 @@ import (
 // supplied to the node.
 type RaftStore func(storage raft.Storage, hardState raftpb.HardState, entries []raftpb.Entry, snapshot raftpb.Snapshot) error
 
+// NilRaftStore defines a null behaviour for RaftStore.
+// WARNING: IT WILL MAKE Node FAIL.
+func NilRaftStore(storage raft.Storage, hardState raftpb.HardState, entries []raftpb.Entry, snapshot raftpb.Snapshot) error {
+	return nil
+}
+
 // RaftNodeRetrieval returns the raft node capability corresponding to a
 // node ID. It MUST be implemented and supplied to Node.
 type RaftNodeRetrieval func(context.Context, uint64) (api.Raft, error)

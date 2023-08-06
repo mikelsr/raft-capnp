@@ -23,6 +23,7 @@ type Node struct {
 	// Raft specifics
 	Raft raft.Node
 	raft.Storage
+	*raft.Config
 
 	// status
 	pause     bool // can it be done with atomic.Bool?
