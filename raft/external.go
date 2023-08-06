@@ -10,7 +10,7 @@ import (
 )
 
 // RaftStore performs an store on the given storage. Storage will be of the type
-// supplied to the node.
+// supplied to the node. It MUST supplied to Node, can be DefaultRaftStore.
 type RaftStore func(storage raft.Storage, hardState raftpb.HardState, entries []raftpb.Entry, snapshot raftpb.Snapshot) error
 
 // NilRaftStore defines a null behaviour for RaftStore.
