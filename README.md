@@ -2,4 +2,4 @@
 
 Use Cap’n Proto as a transport for etcd's raft implementation.
 
-Based on [abronan/proto](https://github.com/abronan/proton).
+This project is based on [abronan/proto](https://github.com/abronan/proton).
