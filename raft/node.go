@@ -52,6 +52,9 @@ func New() *Node {
 	}
 }
 
+// Stop a node in a non-forcing, non way (pending operations will complete).
+// Non-blocking.
+// To stop forcefully, cancel the context Node.Start() was called with.
 func (n *Node) Stop(cause error) {
 	if cause == nil {
 		_, file, no, ok := runtime.Caller(1)
@@ -91,7 +94,9 @@ func (n *Node) Start(ctx context.Context) {
 		}
 
 		if err != nil {
-			n.stopChan <- err
+			go func() {
+				n.stopChan <- err
+			}()
 		}
 	}
 }
@@ -348,6 +353,9 @@ func (n *Node) Register(ctx context.Context, id uint64) error {
 	for i := 0; i < RetrievalRetries; i++ {
 		node, err = n.retrieveWithTimeout(ctx, id, RetrievalTimeout)
 		if err == nil {
+			break
+		}
+		if err != nil && err == ctx.Err() {
 			break
 		}
 	}
