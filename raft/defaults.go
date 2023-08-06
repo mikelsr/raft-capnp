@@ -18,7 +18,6 @@ func DefaultConfig() *raft.Config {
 		ElectionTick:    ElectionTick,
 		MaxSizePerMsg:   MaxSizePerMsg,
 		MaxInflightMsgs: MaxInflightMsgs,
-		Logger:          DefaultLogger,
 	}
 }
 
