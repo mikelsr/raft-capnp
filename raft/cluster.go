@@ -43,8 +43,8 @@ func (c *Cluster) addPeer(id uint64, peer api.Raft) {
 
 // AddPeer adds a node to our neighbors
 func (c *Cluster) AddPeer(ctx context.Context, peer api.Raft) {
-	c.lock.Lock()
 	id, _ := rpcGetId(ctx, peer)
+	c.lock.Lock()
 	c.peers[id] = peer
 	c.lock.Unlock()
 }
