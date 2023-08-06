@@ -436,7 +436,7 @@ func (n *Node) retrieveWithTimeout(ctx context.Context, id uint64, timeout time.
 
 	// Add a cancel function for timeout/context cases.
 	rCtx, cancel := context.WithCancel(ctx)
-
+	defer cancel()
 	go n.retrieve(rCtx, id, nodeC, errC)
 
 	select {
@@ -445,10 +445,8 @@ func (n *Node) retrieveWithTimeout(ctx context.Context, id uint64, timeout time.
 	case err = <-errC:
 		break
 	case <-time.After(timeout):
-		defer cancel()
 		err = fmt.Errorf("timed out after %s", timeout.String())
 	case <-ctx.Done():
-		defer cancel()
 		err = ctx.Err()
 	}
 	return node, err
