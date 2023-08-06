@@ -27,8 +27,7 @@ type Node struct {
 	ticker    time.Ticker
 	stopChan  chan error
 
-	Id uint64
-	Cluster
+	hook OnNewValue
 }
 
 // Join a Raft cluster.
