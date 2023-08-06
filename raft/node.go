@@ -224,39 +224,80 @@ func (n *Node) Id(ctx context.Context, call api.Raft_id) error {
 // CAPNP END
 
 func (n *Node) Start(ctx context.Context) {
+	var err error
 	for {
 		select {
 		case <-n.ticker.C:
 			n.raft.Tick()
+
 		case ready := <-n.raft.Ready():
-			// TODO
-			_ = ready
+			err = n.doReady(ctx, ready)
+
 		case pause := <-n.pauseChan:
-			// wait until unpause
-			n.setPaused(pause)
-			err := n.waitPause(ctx)
-			if err != nil {
-				n.stopChan <- err
-				break
-			}
-			// process pending messages
-			err = n.churnQueue(ctx)
-			if err != nil {
-				n.stopChan <- err
-			}
+			err = n.doPause(ctx, pause)
+
 		case <-ctx.Done():
-			n.stopChan <- ctx.Err()
+			err = ctx.Err()
+
 		case err := <-n.stopChan:
-			if err != nil {
-				log.Fatalf("Stop server with error `%s`.\n", err.Error())
-			} else {
-				log.Println("Stop server with no errors.")
-			}
-			n.raft.Stop()
-			close(n.stopChan)
+			defer close(n.stopChan)
+			defer n.doStop(ctx, err)
 			return
 		}
+
+		if err != nil {
+			n.stopChan <- err
+		}
 	}
+}
+
+func (n *Node) doReady(ctx context.Context, ready raft.Ready) error {
+	err := n.RaftStore(n.Storage, ready.HardState, ready.Entries, ready.Snapshot)
+	if err != nil {
+		return err
+	}
+
+	n.broadcast(ctx, ready.Messages)
+
+	if !raft.IsEmptySnap(ready.Snapshot) {
+		return errors.New("snapshotting is not yet implemented")
+	}
+
+	for _, entry := range ready.CommittedEntries {
+		switch entry.Type {
+		case raftpb.EntryNormal:
+			err = n.addEntry(entry)
+		case raftpb.EntryConfChange:
+			err = n.addConfChange(entry)
+		default:
+			err = fmt.Errorf(
+				"unrecognized entry type: %s", raftpb.EntryType_name[int32(entry.Type)])
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+func (n *Node) doStop(ctx context.Context, err error) {
+	if err != nil {
+		log.Fatalf("Stop server with error `%s`.\n", err.Error())
+	} else {
+		log.Println("Stop server with no errors.")
+	}
+	n.raft.Stop()
+}
+
+func (n *Node) doPause(ctx context.Context, pause bool) error {
+	// wait until unpause
+	n.setPaused(pause)
+	err := n.waitPause(ctx)
+	if err != nil {
+		return err
+	}
+	// process pending messages
+	return n.churnQueue(ctx)
 }
 
 // wait until pause is set to true.
