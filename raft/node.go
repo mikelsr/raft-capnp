@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"runtime"
 	"sync"
 	"time"
 
@@ -62,6 +63,18 @@ func (n *Node) init() {
 		peers = append(peers, raft.Peer{ID: k})
 	}
 	n.Raft = raft.StartNode(n.Config, peers)
+}
+
+func (n *Node) Stop(cause error) {
+	if cause == nil {
+		_, file, no, ok := runtime.Caller(1)
+		if ok {
+			cause = fmt.Errorf("manually stopped from %s#%d", file, no)
+		} else {
+			cause = errors.New("manually stopped")
+		}
+	}
+	n.stopChan <- cause
 }
 
 // Start the raft node.
