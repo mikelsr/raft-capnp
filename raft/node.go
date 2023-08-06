@@ -73,23 +73,29 @@ func (n *Node) Stop(cause error) {
 func (n *Node) Start(ctx context.Context) {
 
 	n.init()
+	n.logger.Info("init done")
 
 	var err error
 	for {
 		select {
 		case <-n.ticker.C:
+			n.logger.Info("tick")
 			n.Raft.Tick()
 
 		case ready := <-n.Raft.Ready():
+			n.logger.Info("ready")
 			err = n.doReady(ctx, ready)
 
 		case pause := <-n.pauseChan:
+			n.logger.Info("pause")
 			err = n.doPause(ctx, pause)
 
 		case <-ctx.Done():
+			n.logger.Info("ctx done")
 			err = ctx.Err()
 
 		case err := <-n.stopChan:
+			n.logger.Infof("stop with error: %s", err.Error())
 			defer close(n.stopChan)
 			defer n.doStop(ctx, err)
 			return
@@ -131,17 +137,21 @@ func (n *Node) doReady(ctx context.Context, ready raft.Ready) error {
 		return err
 	}
 
-	n.broadcast(ctx, ready.Messages)
+	n.logger.Info("send messages")
+	n.sendMessages(ctx, ready.Messages)
 
 	if !raft.IsEmptySnap(ready.Snapshot) {
 		return errors.New("snapshotting is not yet implemented")
 	}
 
+	n.logger.Info("process entries")
 	for _, entry := range ready.CommittedEntries {
 		switch entry.Type {
 		case raftpb.EntryNormal:
+			n.logger.Info("normal entry")
 			err = n.addEntry(entry)
 		case raftpb.EntryConfChange:
+			n.logger.Info("conf change")
 			err = n.addConfChange(ctx, entry)
 		default:
 			err = fmt.Errorf(
@@ -260,8 +270,10 @@ func (n *Node) addConfChange(ctx context.Context, entry raftpb.Entry) error {
 
 	switch cc.Type {
 	case raftpb.ConfChangeAddNode:
+		n.logger.Info("add node")
 		err = n.addNode(ctx, cc)
 	case raftpb.ConfChangeRemoveNode:
+		n.logger.Info("remove node")
 		err = n.removeNode(ctx, cc)
 	default:
 		err = fmt.Errorf(
@@ -292,7 +304,7 @@ func (n *Node) removeNode(ctx context.Context, cc raftpb.ConfChange) error {
 }
 
 // TODO find a more appropiate name
-func (n *Node) broadcast(ctx context.Context, messages []raftpb.Message) {
+func (n *Node) sendMessages(ctx context.Context, messages []raftpb.Message) {
 	peers := n.Cluster.Peers()
 
 	for _, msg := range messages {
@@ -353,6 +365,7 @@ func (n *Node) Register(ctx context.Context, id uint64) error {
 		node api.Raft
 	)
 
+	n.logger.Info("retrieve with timeout")
 	for i := 0; i < RetrievalRetries; i++ {
 		node, err = n.retrieveWithTimeout(ctx, id, RetrievalTimeout)
 		if err == nil {
@@ -366,7 +379,7 @@ func (n *Node) Register(ctx context.Context, id uint64) error {
 	if err != nil {
 		return err
 	}
-
+	n.logger.Info("add peer")
 	n.Cluster.AddPeer(ctx, node)
 	return nil
 }
