@@ -21,9 +21,10 @@ type Node struct {
 	items ItemMap
 
 	// raft specifics
-	raft    raft.Node
-	storage Storage
-	queue   MessageQueue
+	raft raft.Node
+	*raft.Config
+	raft.Storage
+	queue MessageQueue
 
 	// status
 	pause     bool // can it be done with atomic.Bool?
@@ -32,7 +33,10 @@ type Node struct {
 	ticker    time.Ticker
 	stopChan  chan error
 
-	hook OnNewValue
+	// externally defined functions
+	OnNewValue
+	RaftNodeRetrieval
+	RaftStore
 }
 
 // CAPNP START
@@ -145,8 +149,10 @@ func (n *Node) Send(ctx context.Context, call api.Raft_send) error {
 
 // send is the capnp-free logic of Send.
 func (n *Node) send(ctx context.Context, msgData []byte) error {
-	var msg *raftpb.Message
-	var err error
+	var (
+		msg *raftpb.Message
+		err error
+	)
 
 	if err = json.Unmarshal(msgData, msg); err != nil {
 		return err
