@@ -11,7 +11,7 @@ interface Raft {
     leave   @1 (node :Raft) -> (error :Text);
     send    @2 (msg  :Data) -> (error :Text);
     put     @3 (item :Item) -> (error :Text);
-    list    @4 ()           -> (objects :List(Item));
+    items   @4 ()           -> (objects :List(Item));
     members @5 ()           -> (members :List(Raft));
     id      @6 ()           -> (id :UInt64);
 }

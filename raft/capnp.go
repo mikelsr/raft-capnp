@@ -171,7 +171,7 @@ func (n *Node) put(ctx context.Context, item Item) error {
 	return n.Raft.Propose(ctx, itemData)
 }
 
-func (n *Node) List(ctx context.Context, call api.Raft_list) error {
+func (n *Node) Items(ctx context.Context, call api.Raft_items) error {
 	return nil
 }
 
