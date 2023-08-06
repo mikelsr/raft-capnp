@@ -37,7 +37,7 @@ type Node struct {
 	RaftStore
 }
 
-func NewNode() *Node {
+func New() *Node {
 	return &Node{
 		ID:      DefaultID(),
 		Cluster: NewCluster(),
