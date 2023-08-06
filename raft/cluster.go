@@ -34,6 +34,13 @@ func (c *Cluster) Peers() map[uint64]api.Raft {
 	return peers
 }
 
+// addPeer skips the RPC and receives the ID directly.
+func (c *Cluster) addPeer(id uint64, peer api.Raft) {
+	c.lock.Lock()
+	c.peers[id] = peer
+	c.lock.Unlock()
+}
+
 // AddPeer adds a node to our neighbors
 func (c *Cluster) AddPeer(ctx context.Context, peer api.Raft) {
 	c.lock.Lock()
