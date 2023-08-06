@@ -47,54 +47,6 @@ func (n *Node) Join(ctx context.Context, call api.Raft_join) error {
 	return nil
 }
 
-func (n *Node) Leave(ctx context.Context, call api.Raft_leave) error {
-	res, err := call.AllocResults()
-	if err != nil {
-		return err
-	}
-	if err = n.leave(ctx, n.Info()); err != nil {
-		res.SetError(err.Error())
-		return err
-	}
-	return nil
-}
-
-func (n *Node) Send(ctx context.Context, call api.Raft_send) error {
-	res, err := call.AllocResults()
-	if err != nil {
-		return err
-	}
-	msgData, err := call.Args().Msg()
-	if err != nil {
-		res.SetError(err.Error())
-		return err
-	}
-	if err = n.send(ctx, msgData); err != nil {
-		res.SetError(err.Error())
-		return err
-	}
-	return nil
-}
-
-func (n *Node) Put(ctx context.Context, call api.Raft_put) error {
-	return nil
-}
-
-func (n *Node) List(ctx context.Context, call api.Raft_list) error {
-	return nil
-}
-
-func (n *Node) Members(ctx context.Context, call api.Raft_members) error {
-	return nil
-}
-
-func (n *Node) Info() Info {
-	return Info{
-		ID:   n.Id,
-		Chan: nil, // TODO create a channel cap
-	}
-}
-
 // call with n.Info()
 func (n *Node) join(ctx context.Context, info Info) ([]Info, error) {
 
@@ -122,6 +74,18 @@ func (n *Node) join(ctx context.Context, info Info) ([]Info, error) {
 	return nodes, nil
 }
 
+func (n *Node) Leave(ctx context.Context, call api.Raft_leave) error {
+	res, err := call.AllocResults()
+	if err != nil {
+		return err
+	}
+	if err = n.leave(ctx, n.Info()); err != nil {
+		res.SetError(err.Error())
+		return err
+	}
+	return nil
+}
+
 // call with n.Info()
 func (n *Node) leave(ctx context.Context, info Info) error {
 	cc := raftpb.ConfChange{
@@ -130,6 +94,23 @@ func (n *Node) leave(ctx context.Context, info Info) error {
 		NodeID: info.ID,
 	}
 	return n.raft.ProposeConfChange(ctx, cc)
+}
+
+func (n *Node) Send(ctx context.Context, call api.Raft_send) error {
+	res, err := call.AllocResults()
+	if err != nil {
+		return err
+	}
+	msgData, err := call.Args().Msg()
+	if err != nil {
+		res.SetError(err.Error())
+		return err
+	}
+	if err = n.send(ctx, msgData); err != nil {
+		res.SetError(err.Error())
+		return err
+	}
+	return nil
 }
 
 func (n *Node) send(ctx context.Context, msgData []byte) error {
@@ -148,6 +129,55 @@ func (n *Node) send(ctx context.Context, msgData []byte) error {
 		err = n.raft.Step(ctx, *msg)
 	}
 	return err
+}
+
+func (n *Node) Put(ctx context.Context, call api.Raft_put) error {
+	res, err := call.AllocResults()
+	if err != nil {
+		return err
+	}
+
+	itemCap, err := call.Args().Item()
+	if err != nil {
+		res.SetError(err.Error())
+		return err
+	}
+
+	item, err := ItemFromApi(itemCap)
+	if err != nil {
+		return err
+	}
+
+	if err = n.put(ctx, item); err != nil {
+		res.SetError(err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (n *Node) put(ctx context.Context, item Item) error {
+	itemData, err := item.Marshal()
+	if err != nil {
+		return err
+	}
+
+	return n.raft.Propose(ctx, itemData)
+}
+
+func (n *Node) List(ctx context.Context, call api.Raft_list) error {
+	return nil
+}
+
+func (n *Node) Members(ctx context.Context, call api.Raft_members) error {
+	return nil
+}
+
+func (n *Node) Info() Info {
+	return Info{
+		ID:   n.Id,
+		Chan: nil, // TODO create a channel cap
+	}
 }
 
 // TODO: send in the original repo
