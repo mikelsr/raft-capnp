@@ -5,7 +5,7 @@ using Go = import "/go.capnp";
 $Go.package("api");
 $Go.import("github.com/mikelsr/raft-capnp/proto/api");
 
-# TODO replace Raft with Node	s, err := f.Future.Struct()
+# TODO replace Raft with Node
 interface Raft {
     join    @0 (node :Raft) -> (nodes :List(Raft), error :Text);
     leave   @1 (node :Raft) -> (error :Text);
