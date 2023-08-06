@@ -14,7 +14,7 @@ func DefaultStorage() raft.Storage {
 func DefaultStoreFunc(storage raft.Storage, hardState raftpb.HardState, entries []raftpb.Entry, snapshot raftpb.Snapshot) error {
 	s, ok := storage.(*raft.MemoryStorage)
 	if !ok {
-		return fmt.Errorf("failed to cast %s to raft.MemoryStorage")
+		return fmt.Errorf("failed to cast %v to raft.MemoryStorage", s)
 	}
 	s.Append(entries)
 
