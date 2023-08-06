@@ -2,10 +2,29 @@ package raft
 
 import (
 	"fmt"
+	"log"
+	"math/rand"
+	"os"
 
 	"go.etcd.io/raft/v3"
 	"go.etcd.io/raft/v3/raftpb"
 )
+
+var DefaultLogger = &raft.DefaultLogger{Logger: log.New(os.Stderr, "raft", log.LstdFlags)}
+
+func DefaultConfig() *raft.Config {
+	return &raft.Config{
+		HeartbeatTick:   HeartbeatTick,
+		ElectionTick:    ElectionTick,
+		MaxSizePerMsg:   MaxSizePerMsg,
+		MaxInflightMsgs: MaxInflightMsgs,
+		Logger:          DefaultLogger,
+	}
+}
+
+func DefaultID() uint64 {
+	return rand.Uint64()
+}
 
 func DefaultStorage() raft.Storage {
 	return raft.NewMemoryStorage()

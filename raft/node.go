@@ -16,14 +16,13 @@ import (
 // Node implements api.Raft_Server.
 type Node struct {
 	ID uint64
-	Cluster
+	*Cluster
 	items ItemMap
-
-	// raft specifics
-	raft raft.Node
-	*raft.Config
-	raft.Storage
 	queue MessageQueue
+
+	// Raft specifics
+	Raft raft.Node
+	raft.Storage
 
 	// status
 	pause     bool // can it be done with atomic.Bool?
@@ -38,14 +37,27 @@ type Node struct {
 	RaftStore
 }
 
+func NewNode() *Node {
+	return &Node{
+		ID:      DefaultID(),
+		Cluster: NewCluster(),
+		items:   ItemMap{},
+		queue:   make(MessageQueue),
+
+		pauseChan: make(chan bool),
+		ticker:    *time.NewTicker(time.Second),
+		stopChan:  make(chan error),
+	}
+}
+
 func (n *Node) Start(ctx context.Context) {
 	var err error
 	for {
 		select {
 		case <-n.ticker.C:
-			n.raft.Tick()
+			n.Raft.Tick()
 
-		case ready := <-n.raft.Ready():
+		case ready := <-n.Raft.Ready():
 			err = n.doReady(ctx, ready)
 
 		case pause := <-n.pauseChan:
@@ -101,7 +113,7 @@ func (n *Node) doStop(ctx context.Context, err error) {
 	} else {
 		log.Println("Stop server with no errors.")
 	}
-	n.raft.Stop()
+	n.Raft.Stop()
 }
 
 func (n *Node) doPause(ctx context.Context, pause bool) error {
@@ -135,7 +147,7 @@ func (n *Node) churnQueue(ctx context.Context) error {
 
 	for len(n.queue) > 0 {
 		msg := <-n.queue
-		err := n.raft.Step(ctx, msg)
+		err := n.Raft.Step(ctx, msg)
 		if err != nil {
 			return err
 		}
@@ -221,13 +233,13 @@ func (n *Node) removeNode(ctx context.Context, cc raftpb.ConfChange) error {
 	defer n.Unregister(ctx, cc.NodeID)
 
 	// Leader, self, steps down.
-	if n.ID == cc.NodeID && n.ID == n.raft.Status().Lead {
-		n.raft.Stop()
+	if n.ID == cc.NodeID && n.ID == n.Raft.Status().Lead {
+		n.Raft.Stop()
 		return nil
 	}
 	// Other leader steps down.
-	if cc.NodeID == n.raft.Status().Lead {
-		return n.raft.Campaign(ctx)
+	if cc.NodeID == n.Raft.Status().Lead {
+		return n.Raft.Campaign(ctx)
 	}
 	return nil
 }
@@ -239,14 +251,14 @@ func (n *Node) broadcast(ctx context.Context, messages []raftpb.Message) {
 	for _, msg := range messages {
 		// Recipient is send.
 		if msg.To == n.ID {
-			n.raft.Step(ctx, msg)
+			n.Raft.Step(ctx, msg)
 			continue
 		}
 
 		// Recipient is potentially a peer.
 		if peer, found := peers[msg.To]; found {
 			if err := rpcSend(ctx, peer, msg); err != nil {
-				n.raft.ReportUnreachable(msg.To)
+				n.Raft.ReportUnreachable(msg.To)
 			}
 		}
 	}

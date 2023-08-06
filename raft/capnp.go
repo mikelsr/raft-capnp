@@ -51,7 +51,7 @@ func (n *Node) join(ctx context.Context, node api.Raft) ([]api.Raft, error) {
 		// Context: marshaledCap,
 	}
 
-	if err := n.raft.ProposeConfChange(ctx, cc); err != nil {
+	if err := n.Raft.ProposeConfChange(ctx, cc); err != nil {
 		return nil, err
 	}
 
@@ -93,7 +93,7 @@ func (n *Node) leave(ctx context.Context, node api.Raft) error {
 		Type:   raftpb.ConfChangeRemoveNode,
 		NodeID: id,
 	}
-	return n.raft.ProposeConfChange(ctx, cc)
+	return n.Raft.ProposeConfChange(ctx, cc)
 }
 
 // Send advances the raft state machine with the received message.
@@ -130,7 +130,7 @@ func (n *Node) send(ctx context.Context, msgData []byte) error {
 		n.queue <- *msg
 		n.pauseLock.Unlock()
 	} else {
-		err = n.raft.Step(ctx, *msg)
+		err = n.Raft.Step(ctx, *msg)
 	}
 	return err
 }
@@ -168,7 +168,7 @@ func (n *Node) put(ctx context.Context, item Item) error {
 		return err
 	}
 
-	return n.raft.Propose(ctx, itemData)
+	return n.Raft.Propose(ctx, itemData)
 }
 
 func (n *Node) List(ctx context.Context, call api.Raft_list) error {
