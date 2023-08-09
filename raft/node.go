@@ -355,6 +355,7 @@ func (n *Node) retrieveWithTimeout(ctx context.Context, id uint64, timeout time.
 	case <-ctx.Done():
 		err = ctx.Err()
 	}
+
 	return node, err
 }
 

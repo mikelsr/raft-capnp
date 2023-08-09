@@ -13,13 +13,15 @@ endif
 
 api_dir := ./proto/api
 example_file := ./example/example
-wasm_file := ./test/wasm/test.wasm
+test_dir := ./test/
+wasm_dir := ${test_dir}/wasm
+wasm_file := ${wasm_dir}/test.wasm
 
 .PHONY: all test clean example
 
 all: capnp example test
 
-clean: capnp-clean example-clean
+clean: capnp-clean example-clean test-clean
 
 
 capnp: capnp-raft
@@ -43,5 +45,9 @@ test: test-wasm example example-clean
 
 # Test that everything can be compiled to wasm
 test-wasm:
-	@env GOOS=wasip1 GOARCH=wasm ${GO} build -o ${wasm_file} ./test/wasm
-	@rm ${wasm_file}
+	@mkdir -p ${wasm_dir}
+	@env GOOS=wasip1 GOARCH=wasm ${GO} build -o ${wasm_file} ./example
+	@rm -rf ${wasm_dir}
+
+test-clean:
+	@rm -rf ${wasm_dir}
