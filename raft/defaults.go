@@ -10,10 +10,18 @@ import (
 	"go.etcd.io/raft/v3/raftpb"
 )
 
-var DefaultLogger = &raft.DefaultLogger{Logger: log.New(os.Stderr, "raft", log.LstdFlags)}
+var defaultLogger = &raft.DefaultLogger{Logger: log.New(os.Stderr, "raft", log.LstdFlags)}
+
+func DefaultLogger(debug bool) raft.Logger {
+	if debug {
+		defaultLogger.EnableDebug()
+	}
+	return defaultLogger
+}
 
 func DefaultConfig() *raft.Config {
 	return &raft.Config{
+		ID:              DefaultID(),
 		HeartbeatTick:   HeartbeatTick,
 		ElectionTick:    ElectionTick,
 		MaxSizePerMsg:   MaxSizePerMsg,
