@@ -54,6 +54,11 @@ func New() *Node {
 	}
 }
 
+// Cap instantiates a new capability from n.
+func (n *Node) Cap() api.Raft {
+	return api.Raft_ServerToClient(n)
+}
+
 // Stop a node in a non-forcing, non way (pending operations will complete).
 // Non-blocking.
 // To stop forcefully, cancel the context Node.Start() was called with.
@@ -160,6 +165,7 @@ func (n *Node) doReady(ctx context.Context, ready raft.Ready) error {
 		if err != nil {
 			return err
 		}
+		n.Raft.Advance()
 	}
 	return err
 }
@@ -280,6 +286,7 @@ func (n *Node) addConfChange(ctx context.Context, entry raftpb.Entry) error {
 			"unrecognized conf change type: %s",
 			raftpb.ConfChangeType_name[int32(cc.Type)])
 	}
+	n.Raft.ApplyConfChange(cc)
 	return err
 }
 
