@@ -26,7 +26,7 @@ func (n *Node) Join(ctx context.Context, call api.Raft_join) error {
 		return err
 	}
 	for i, node := range nodes {
-		caps.Set(i, node)
+		caps.Set(i, node.AddRef())
 	}
 	if err = res.SetNodes(caps); err != nil {
 		res.SetError(err.Error())
@@ -37,8 +37,13 @@ func (n *Node) Join(ctx context.Context, call api.Raft_join) error {
 
 // join is the capnp-free logic of Join.
 func (n *Node) join(ctx context.Context, node api.Raft) ([]api.Raft, error) {
+	node = node.AddRef()
 
-	id, err := rpcGetId(ctx, node)
+	if err := node.Resolve(ctx); err != nil {
+		return nil, err
+	}
+
+	id, err := rpcGetId(ctx, node.AddRef())
 	if err != nil {
 		return nil, err
 	}
@@ -47,24 +52,24 @@ func (n *Node) join(ctx context.Context, node api.Raft) ([]api.Raft, error) {
 		ID:     id,
 		Type:   raftpb.ConfChangeAddNode,
 		NodeID: id,
-		// TODO con can nodes be propagated?
-		// Context: marshaledCap,
 	}
+
+	n.Logger.Debugf("[%x] joined by peer %x\n", n.ID, id)
 
 	if err := n.Raft.ProposeConfChange(ctx, cc); err != nil {
 		return nil, err
 	}
 
-	// TODO is the map necessary?
-	peers := n.Cluster.Peers()
-	nodes := make([]api.Raft, len(peers))
+	// Return known peers
+	pm := n.View.Peers()
+	peers := make([]api.Raft, len(pm))
 	i := 0
-	for _, node := range peers {
-		nodes[i] = node
+	for _, peer := range pm {
+		peers[i] = peer.AddRef()
 		i++
 	}
 
-	return nodes, nil
+	return peers, nil
 }
 
 // Leave a Raft cluster.
@@ -74,7 +79,7 @@ func (n *Node) Leave(ctx context.Context, call api.Raft_leave) error {
 		return err
 	}
 	node := call.Args().Node()
-	if err = n.leave(ctx, node); err != nil {
+	if err = n.leave(ctx, node.AddRef()); err != nil {
 		res.SetError(err.Error())
 		return err
 	}
@@ -83,7 +88,7 @@ func (n *Node) Leave(ctx context.Context, call api.Raft_leave) error {
 
 // leave is the capnp-free logic of Leave.
 func (n *Node) leave(ctx context.Context, node api.Raft) error {
-	id, err := rpcGetId(ctx, node)
+	id, err := rpcGetId(ctx, node.AddRef())
 	if err != nil {
 		return err
 	}
@@ -93,6 +98,9 @@ func (n *Node) leave(ctx context.Context, node api.Raft) error {
 		Type:   raftpb.ConfChangeRemoveNode,
 		NodeID: id,
 	}
+
+	n.Logger.Debugf("[%x] left by peer %x\n", id)
+
 	return n.Raft.ProposeConfChange(ctx, cc)
 }
 
@@ -117,7 +125,7 @@ func (n *Node) Send(ctx context.Context, call api.Raft_send) error {
 // send is the capnp-free logic of Send.
 func (n *Node) send(ctx context.Context, msgData []byte) error {
 	var (
-		msg *raftpb.Message
+		msg = &raftpb.Message{}
 		err error
 	)
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"runtime"
 	"sync"
 	"time"
@@ -16,11 +15,10 @@ import (
 
 // Node implements api.Raft_Server.
 type Node struct {
-	ID uint64
-	*Cluster
+	*View
 	items  ItemMap
 	queue  MessageQueue
-	logger raft.Logger
+	Logger raft.Logger
 
 	// Raft specifics
 	Raft raft.Node
@@ -38,15 +36,16 @@ type Node struct {
 	OnNewValue
 	RaftNodeRetrieval
 	RaftStore
+
+	init bool
 }
 
 func New() *Node {
 	return &Node{
-		ID:      DefaultID(),
-		Cluster: NewCluster(),
-		items:   ItemMap{},
-		queue:   make(MessageQueue),
-		logger:  DefaultLogger,
+		View:   NewView(),
+		items:  ItemMap{},
+		queue:  make(MessageQueue),
+		Logger: DefaultLogger(false),
 
 		pauseChan: make(chan bool),
 		ticker:    *time.NewTicker(time.Second),
@@ -56,7 +55,7 @@ func New() *Node {
 
 // Cap instantiates a new capability from n.
 func (n *Node) Cap() api.Raft {
-	return api.Raft_ServerToClient(n)
+	return api.Raft_ServerToClient(n).AddRef()
 }
 
 // Stop a node in a non-forcing, non way (pending operations will complete).
@@ -77,36 +76,33 @@ func (n *Node) Stop(cause error) {
 // Start the raft node.
 func (n *Node) Start(ctx context.Context) {
 
-	n.init()
-	n.logger.Info("init done")
+	n.Init()
 
 	var err error
 	for {
 		select {
 		case <-n.ticker.C:
-			n.logger.Info("tick")
 			n.Raft.Tick()
 
 		case ready := <-n.Raft.Ready():
-			n.logger.Info("ready")
 			err = n.doReady(ctx, ready)
 
 		case pause := <-n.pauseChan:
-			n.logger.Info("pause")
 			err = n.doPause(ctx, pause)
 
 		case <-ctx.Done():
-			n.logger.Info("ctx done")
+			n.Logger.Debug("ctx done")
 			err = ctx.Err()
 
 		case err := <-n.stopChan:
-			n.logger.Infof("stop with error: %s", err.Error())
+			n.Logger.Debugf("stop with error: %s", err.Error())
 			defer close(n.stopChan)
 			defer n.doStop(ctx, err)
 			return
 		}
 
 		if err != nil {
+			n.Logger.Error(err)
 			go func() {
 				n.stopChan <- err
 			}()
@@ -119,21 +115,25 @@ func (n *Node) Start(ctx context.Context) {
 func (n *Node) lateConfig() {
 	n.Config.ID = n.ID
 	n.Config.Storage = n.Storage
-	n.Config.Logger = n.logger
+	n.Config.Logger = n.Logger
 }
 
-// init the underlying Raft node and register self in cluster.
-func (n *Node) init() {
-	n.lateConfig()
-	peers := []raft.Peer{{ID: n.ID}}
-	n.Cluster.addPeer(n.ID, api.Raft_ServerToClient(n))
-	for k := range n.Cluster.Peers() {
-		if k == n.ID {
-			continue
-		}
-		peers = append(peers, raft.Peer{ID: k})
+// Init the underlying Raft node and register self in cluster.
+func (n *Node) Init() {
+	if !n.init {
+		n.init = true
+		n.lateConfig()
+		peerList := []raft.Peer{{ID: n.ID}}
+		// n.Cluster.addPeer(n.ID, n.Cap())
+		// for k := range n.Cluster.Peers() {
+		// 	if k == n.ID {
+		// 		continue
+		// 	}
+		// 	peerList = append(peerList, raft.Peer{ID: k})
+		// }
+		n.Raft = raft.StartNode(n.Config, peerList)
+		n.Logger.Debug("init done")
 	}
-	n.Raft = raft.StartNode(n.Config, peers)
 }
 
 func (n *Node) doReady(ctx context.Context, ready raft.Ready) error {
@@ -142,21 +142,19 @@ func (n *Node) doReady(ctx context.Context, ready raft.Ready) error {
 		return err
 	}
 
-	n.logger.Info("send messages")
 	n.sendMessages(ctx, ready.Messages)
 
 	if !raft.IsEmptySnap(ready.Snapshot) {
 		return errors.New("snapshotting is not yet implemented")
 	}
 
-	n.logger.Info("process entries")
 	for _, entry := range ready.CommittedEntries {
 		switch entry.Type {
 		case raftpb.EntryNormal:
-			n.logger.Info("normal entry")
+			n.Logger.Debug("process normal entry")
 			err = n.addEntry(entry)
 		case raftpb.EntryConfChange:
-			n.logger.Info("conf change")
+			n.Logger.Debug("process conf change")
 			err = n.addConfChange(ctx, entry)
 		default:
 			err = fmt.Errorf(
@@ -165,16 +163,16 @@ func (n *Node) doReady(ctx context.Context, ready raft.Ready) error {
 		if err != nil {
 			return err
 		}
-		n.Raft.Advance()
 	}
+	n.Raft.Advance()
 	return err
 }
 
 func (n *Node) doStop(ctx context.Context, err error) {
 	if err != nil {
-		log.Fatalf("Stop server with error `%s`.\n", err.Error())
+		n.Logger.Fatalf("Stop server with error `%s`.\n", err.Error())
 	} else {
-		log.Println("Stop server with no errors.")
+		n.Logger.Debug("Stop server with no errors.")
 	}
 	n.Raft.Stop()
 }
@@ -261,7 +259,7 @@ func (n *Node) addEntry(entry raftpb.Entry) error {
 }
 
 func (n *Node) addConfChange(ctx context.Context, entry raftpb.Entry) error {
-	if entry.Type != raftpb.EntryConfChange || entry.Data == nil {
+	if entry.Data == nil {
 		return nil
 	}
 
@@ -276,10 +274,10 @@ func (n *Node) addConfChange(ctx context.Context, entry raftpb.Entry) error {
 
 	switch cc.Type {
 	case raftpb.ConfChangeAddNode:
-		n.logger.Info("add node")
+		n.Logger.Debugf("[%x] add node %x\n", n.ID, cc.NodeID)
 		err = n.addNode(ctx, cc)
 	case raftpb.ConfChangeRemoveNode:
-		n.logger.Info("remove node")
+		n.Logger.Debug("remove node")
 		err = n.removeNode(ctx, cc)
 	default:
 		err = fmt.Errorf(
@@ -312,10 +310,11 @@ func (n *Node) removeNode(ctx context.Context, cc raftpb.ConfChange) error {
 
 // TODO find a more appropiate name
 func (n *Node) sendMessages(ctx context.Context, messages []raftpb.Message) {
-	peers := n.Cluster.Peers()
+	peers := n.View.Peers()
 
 	for _, msg := range messages {
-		// Recipient is send.
+
+		// Recipient is sender.
 		if msg.To == n.ID {
 			n.Raft.Step(ctx, msg)
 			continue
@@ -323,7 +322,9 @@ func (n *Node) sendMessages(ctx context.Context, messages []raftpb.Message) {
 
 		// Recipient is potentially a peer.
 		if peer, found := peers[msg.To]; found {
-			if err := rpcSend(ctx, peer, msg); err != nil {
+			n.Logger.Debugf("[%x] send message %v to peer %x\n", n.ID, msg, msg.To)
+			if err := rpcSend(ctx, peer.AddRef(), msg); err != nil {
+				n.Logger.Error(err)
 				n.Raft.ReportUnreachable(msg.To)
 			}
 		}
@@ -335,7 +336,7 @@ func (n *Node) retrieve(ctx context.Context, id uint64, nodeC chan api.Raft, err
 	if err != nil {
 		errC <- err
 	} else {
-		nodeC <- node
+		nodeC <- node.AddRef()
 	}
 }
 
@@ -363,7 +364,7 @@ func (n *Node) retrieveWithTimeout(ctx context.Context, id uint64, timeout time.
 		err = ctx.Err()
 	}
 
-	return node, err
+	return node.AddRef(), err
 }
 
 // Register a new node in the cluster.
@@ -373,7 +374,6 @@ func (n *Node) Register(ctx context.Context, id uint64) error {
 		node api.Raft
 	)
 
-	n.logger.Info("retrieve with timeout")
 	for i := 0; i < RetrievalRetries; i++ {
 		node, err = n.retrieveWithTimeout(ctx, id, RetrievalTimeout)
 		if err == nil {
@@ -387,17 +387,18 @@ func (n *Node) Register(ctx context.Context, id uint64) error {
 	if err != nil {
 		return err
 	}
-	n.logger.Info("add peer")
-	n.Cluster.AddPeer(ctx, node)
+	n.Logger.Debugf("[%x] add peer %x\n", n.ID, id)
+	n.View.AddPeer(ctx, node.AddRef())
 	return nil
 }
 
 // Unregister a node.
 func (n *Node) Unregister(ctx context.Context, id uint64) {
+	n.Logger.Debugf("[%x] unregister node %x\n", n.ID, id)
 	if n.ID == id {
 		return
 	}
 
-	peer := n.Cluster.PopPeer(id)
+	peer := n.View.PopPeer(id)
 	peer.Release()
 }

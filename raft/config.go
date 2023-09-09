@@ -2,8 +2,9 @@ package raft
 
 import "go.etcd.io/raft/v3"
 
+// Specify ID. Call AFTER WithConfig.
 func (n *Node) WithID(id uint64) *Node {
-	n.ID = id
+	n.Config.ID = id
 	return n
 }
 
@@ -33,6 +34,6 @@ func (n *Node) WithRaftConfig(config *raft.Config) *Node {
 }
 
 func (n *Node) WithLogger(logger raft.Logger) *Node {
-	n.logger = logger
+	n.Logger = logger
 	return n
 }
