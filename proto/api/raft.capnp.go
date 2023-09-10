@@ -16,43 +16,43 @@ type Raft capnp.Client
 // Raft_TypeID is the unique identifier for the type Raft.
 const Raft_TypeID = 0xbfb4702210603dcb
 
-func (c Raft) Join(ctx context.Context, params func(Raft_join_Params) error) (Raft_join_Results_Future, capnp.ReleaseFunc) {
+func (c Raft) Add(ctx context.Context, params func(Raft_add_Params) error) (Raft_add_Results_Future, capnp.ReleaseFunc) {
 
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xbfb4702210603dcb,
 			MethodID:      0,
 			InterfaceName: "raft.capnp:Raft",
-			MethodName:    "join",
+			MethodName:    "add",
 		},
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
-		s.PlaceArgs = func(s capnp.Struct) error { return params(Raft_join_Params(s)) }
+		s.PlaceArgs = func(s capnp.Struct) error { return params(Raft_add_Params(s)) }
 	}
 
 	ans, release := capnp.Client(c).SendCall(ctx, s)
-	return Raft_join_Results_Future{Future: ans.Future()}, release
+	return Raft_add_Results_Future{Future: ans.Future()}, release
 
 }
 
-func (c Raft) Leave(ctx context.Context, params func(Raft_leave_Params) error) (Raft_leave_Results_Future, capnp.ReleaseFunc) {
+func (c Raft) Remove(ctx context.Context, params func(Raft_remove_Params) error) (Raft_remove_Results_Future, capnp.ReleaseFunc) {
 
 	s := capnp.Send{
 		Method: capnp.Method{
 			InterfaceID:   0xbfb4702210603dcb,
 			MethodID:      1,
 			InterfaceName: "raft.capnp:Raft",
-			MethodName:    "leave",
+			MethodName:    "remove",
 		},
 	}
 	if params != nil {
 		s.ArgsSize = capnp.ObjectSize{DataSize: 0, PointerCount: 1}
-		s.PlaceArgs = func(s capnp.Struct) error { return params(Raft_leave_Params(s)) }
+		s.PlaceArgs = func(s capnp.Struct) error { return params(Raft_remove_Params(s)) }
 	}
 
 	ans, release := capnp.Client(c).SendCall(ctx, s)
-	return Raft_leave_Results_Future{Future: ans.Future()}, release
+	return Raft_remove_Results_Future{Future: ans.Future()}, release
 
 }
 
@@ -229,9 +229,9 @@ func (c Raft) GetFlowLimiter() fc.FlowLimiter {
 
 // A Raft_Server is a Raft with a local implementation.
 type Raft_Server interface {
-	Join(context.Context, Raft_join) error
+	Add(context.Context, Raft_add) error
 
-	Leave(context.Context, Raft_leave) error
+	Remove(context.Context, Raft_remove) error
 
 	Send(context.Context, Raft_send) error
 
@@ -268,10 +268,10 @@ func Raft_Methods(methods []server.Method, s Raft_Server) []server.Method {
 			InterfaceID:   0xbfb4702210603dcb,
 			MethodID:      0,
 			InterfaceName: "raft.capnp:Raft",
-			MethodName:    "join",
+			MethodName:    "add",
 		},
 		Impl: func(ctx context.Context, call *server.Call) error {
-			return s.Join(ctx, Raft_join{call})
+			return s.Add(ctx, Raft_add{call})
 		},
 	})
 
@@ -280,10 +280,10 @@ func Raft_Methods(methods []server.Method, s Raft_Server) []server.Method {
 			InterfaceID:   0xbfb4702210603dcb,
 			MethodID:      1,
 			InterfaceName: "raft.capnp:Raft",
-			MethodName:    "leave",
+			MethodName:    "remove",
 		},
 		Impl: func(ctx context.Context, call *server.Call) error {
-			return s.Leave(ctx, Raft_leave{call})
+			return s.Remove(ctx, Raft_remove{call})
 		},
 	})
 
@@ -350,38 +350,38 @@ func Raft_Methods(methods []server.Method, s Raft_Server) []server.Method {
 	return methods
 }
 
-// Raft_join holds the state for a server call to Raft.join.
+// Raft_add holds the state for a server call to Raft.add.
 // See server.Call for documentation.
-type Raft_join struct {
+type Raft_add struct {
 	*server.Call
 }
 
 // Args returns the call's arguments.
-func (c Raft_join) Args() Raft_join_Params {
-	return Raft_join_Params(c.Call.Args())
+func (c Raft_add) Args() Raft_add_Params {
+	return Raft_add_Params(c.Call.Args())
 }
 
 // AllocResults allocates the results struct.
-func (c Raft_join) AllocResults() (Raft_join_Results, error) {
+func (c Raft_add) AllocResults() (Raft_add_Results, error) {
 	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return Raft_join_Results(r), err
+	return Raft_add_Results(r), err
 }
 
-// Raft_leave holds the state for a server call to Raft.leave.
+// Raft_remove holds the state for a server call to Raft.remove.
 // See server.Call for documentation.
-type Raft_leave struct {
+type Raft_remove struct {
 	*server.Call
 }
 
 // Args returns the call's arguments.
-func (c Raft_leave) Args() Raft_leave_Params {
-	return Raft_leave_Params(c.Call.Args())
+func (c Raft_remove) Args() Raft_remove_Params {
+	return Raft_remove_Params(c.Call.Args())
 }
 
 // AllocResults allocates the results struct.
-func (c Raft_leave) AllocResults() (Raft_leave_Results, error) {
+func (c Raft_remove) AllocResults() (Raft_remove_Results, error) {
 	r, err := c.Call.AllocResults(capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Raft_leave_Results(r), err
+	return Raft_remove_Results(r), err
 }
 
 // Raft_send holds the state for a server call to Raft.send.
@@ -478,63 +478,63 @@ func NewRaft_List(s *capnp.Segment, sz int32) (Raft_List, error) {
 	return capnp.CapList[Raft](l), err
 }
 
-type Raft_join_Params capnp.Struct
+type Raft_add_Params capnp.Struct
 
-// Raft_join_Params_TypeID is the unique identifier for the type Raft_join_Params.
-const Raft_join_Params_TypeID = 0xc6f8efbe9e7d5983
+// Raft_add_Params_TypeID is the unique identifier for the type Raft_add_Params.
+const Raft_add_Params_TypeID = 0xc6f8efbe9e7d5983
 
-func NewRaft_join_Params(s *capnp.Segment) (Raft_join_Params, error) {
+func NewRaft_add_Params(s *capnp.Segment) (Raft_add_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Raft_join_Params(st), err
+	return Raft_add_Params(st), err
 }
 
-func NewRootRaft_join_Params(s *capnp.Segment) (Raft_join_Params, error) {
+func NewRootRaft_add_Params(s *capnp.Segment) (Raft_add_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Raft_join_Params(st), err
+	return Raft_add_Params(st), err
 }
 
-func ReadRootRaft_join_Params(msg *capnp.Message) (Raft_join_Params, error) {
+func ReadRootRaft_add_Params(msg *capnp.Message) (Raft_add_Params, error) {
 	root, err := msg.Root()
-	return Raft_join_Params(root.Struct()), err
+	return Raft_add_Params(root.Struct()), err
 }
 
-func (s Raft_join_Params) String() string {
+func (s Raft_add_Params) String() string {
 	str, _ := text.Marshal(0xc6f8efbe9e7d5983, capnp.Struct(s))
 	return str
 }
 
-func (s Raft_join_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+func (s Raft_add_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
 	return capnp.Struct(s).EncodeAsPtr(seg)
 }
 
-func (Raft_join_Params) DecodeFromPtr(p capnp.Ptr) Raft_join_Params {
-	return Raft_join_Params(capnp.Struct{}.DecodeFromPtr(p))
+func (Raft_add_Params) DecodeFromPtr(p capnp.Ptr) Raft_add_Params {
+	return Raft_add_Params(capnp.Struct{}.DecodeFromPtr(p))
 }
 
-func (s Raft_join_Params) ToPtr() capnp.Ptr {
+func (s Raft_add_Params) ToPtr() capnp.Ptr {
 	return capnp.Struct(s).ToPtr()
 }
-func (s Raft_join_Params) IsValid() bool {
+func (s Raft_add_Params) IsValid() bool {
 	return capnp.Struct(s).IsValid()
 }
 
-func (s Raft_join_Params) Message() *capnp.Message {
+func (s Raft_add_Params) Message() *capnp.Message {
 	return capnp.Struct(s).Message()
 }
 
-func (s Raft_join_Params) Segment() *capnp.Segment {
+func (s Raft_add_Params) Segment() *capnp.Segment {
 	return capnp.Struct(s).Segment()
 }
-func (s Raft_join_Params) Node() Raft {
+func (s Raft_add_Params) Node() Raft {
 	p, _ := capnp.Struct(s).Ptr(0)
 	return Raft(p.Interface().Client())
 }
 
-func (s Raft_join_Params) HasNode() bool {
+func (s Raft_add_Params) HasNode() bool {
 	return capnp.Struct(s).HasPtr(0)
 }
 
-func (s Raft_join_Params) SetNode(v Raft) error {
+func (s Raft_add_Params) SetNode(v Raft) error {
 	if !v.IsValid() {
 		return capnp.Struct(s).SetPtr(0, capnp.Ptr{})
 	}
@@ -543,89 +543,89 @@ func (s Raft_join_Params) SetNode(v Raft) error {
 	return capnp.Struct(s).SetPtr(0, in.ToPtr())
 }
 
-// Raft_join_Params_List is a list of Raft_join_Params.
-type Raft_join_Params_List = capnp.StructList[Raft_join_Params]
+// Raft_add_Params_List is a list of Raft_add_Params.
+type Raft_add_Params_List = capnp.StructList[Raft_add_Params]
 
-// NewRaft_join_Params creates a new list of Raft_join_Params.
-func NewRaft_join_Params_List(s *capnp.Segment, sz int32) (Raft_join_Params_List, error) {
+// NewRaft_add_Params creates a new list of Raft_add_Params.
+func NewRaft_add_Params_List(s *capnp.Segment, sz int32) (Raft_add_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Raft_join_Params](l), err
+	return capnp.StructList[Raft_add_Params](l), err
 }
 
-// Raft_join_Params_Future is a wrapper for a Raft_join_Params promised by a client call.
-type Raft_join_Params_Future struct{ *capnp.Future }
+// Raft_add_Params_Future is a wrapper for a Raft_add_Params promised by a client call.
+type Raft_add_Params_Future struct{ *capnp.Future }
 
-func (f Raft_join_Params_Future) Struct() (Raft_join_Params, error) {
+func (f Raft_add_Params_Future) Struct() (Raft_add_Params, error) {
 	p, err := f.Future.Ptr()
-	return Raft_join_Params(p.Struct()), err
+	return Raft_add_Params(p.Struct()), err
 }
-func (p Raft_join_Params_Future) Node() Raft {
+func (p Raft_add_Params_Future) Node() Raft {
 	return Raft(p.Future.Field(0, nil).Client())
 }
 
-type Raft_join_Results capnp.Struct
+type Raft_add_Results capnp.Struct
 
-// Raft_join_Results_TypeID is the unique identifier for the type Raft_join_Results.
-const Raft_join_Results_TypeID = 0xb009687519b3f38f
+// Raft_add_Results_TypeID is the unique identifier for the type Raft_add_Results.
+const Raft_add_Results_TypeID = 0xb009687519b3f38f
 
-func NewRaft_join_Results(s *capnp.Segment) (Raft_join_Results, error) {
+func NewRaft_add_Results(s *capnp.Segment) (Raft_add_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return Raft_join_Results(st), err
+	return Raft_add_Results(st), err
 }
 
-func NewRootRaft_join_Results(s *capnp.Segment) (Raft_join_Results, error) {
+func NewRootRaft_add_Results(s *capnp.Segment) (Raft_add_Results, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2})
-	return Raft_join_Results(st), err
+	return Raft_add_Results(st), err
 }
 
-func ReadRootRaft_join_Results(msg *capnp.Message) (Raft_join_Results, error) {
+func ReadRootRaft_add_Results(msg *capnp.Message) (Raft_add_Results, error) {
 	root, err := msg.Root()
-	return Raft_join_Results(root.Struct()), err
+	return Raft_add_Results(root.Struct()), err
 }
 
-func (s Raft_join_Results) String() string {
+func (s Raft_add_Results) String() string {
 	str, _ := text.Marshal(0xb009687519b3f38f, capnp.Struct(s))
 	return str
 }
 
-func (s Raft_join_Results) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+func (s Raft_add_Results) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
 	return capnp.Struct(s).EncodeAsPtr(seg)
 }
 
-func (Raft_join_Results) DecodeFromPtr(p capnp.Ptr) Raft_join_Results {
-	return Raft_join_Results(capnp.Struct{}.DecodeFromPtr(p))
+func (Raft_add_Results) DecodeFromPtr(p capnp.Ptr) Raft_add_Results {
+	return Raft_add_Results(capnp.Struct{}.DecodeFromPtr(p))
 }
 
-func (s Raft_join_Results) ToPtr() capnp.Ptr {
+func (s Raft_add_Results) ToPtr() capnp.Ptr {
 	return capnp.Struct(s).ToPtr()
 }
-func (s Raft_join_Results) IsValid() bool {
+func (s Raft_add_Results) IsValid() bool {
 	return capnp.Struct(s).IsValid()
 }
 
-func (s Raft_join_Results) Message() *capnp.Message {
+func (s Raft_add_Results) Message() *capnp.Message {
 	return capnp.Struct(s).Message()
 }
 
-func (s Raft_join_Results) Segment() *capnp.Segment {
+func (s Raft_add_Results) Segment() *capnp.Segment {
 	return capnp.Struct(s).Segment()
 }
-func (s Raft_join_Results) Nodes() (Raft_List, error) {
+func (s Raft_add_Results) Nodes() (Raft_List, error) {
 	p, err := capnp.Struct(s).Ptr(0)
 	return Raft_List(p.List()), err
 }
 
-func (s Raft_join_Results) HasNodes() bool {
+func (s Raft_add_Results) HasNodes() bool {
 	return capnp.Struct(s).HasPtr(0)
 }
 
-func (s Raft_join_Results) SetNodes(v Raft_List) error {
+func (s Raft_add_Results) SetNodes(v Raft_List) error {
 	return capnp.Struct(s).SetPtr(0, v.ToPtr())
 }
 
 // NewNodes sets the nodes field to a newly
 // allocated Raft_List, preferring placement in s's segment.
-func (s Raft_join_Results) NewNodes(n int32) (Raft_List, error) {
+func (s Raft_add_Results) NewNodes(n int32) (Raft_List, error) {
 	l, err := NewRaft_List(capnp.Struct(s).Segment(), n)
 	if err != nil {
 		return Raft_List{}, err
@@ -633,98 +633,98 @@ func (s Raft_join_Results) NewNodes(n int32) (Raft_List, error) {
 	err = capnp.Struct(s).SetPtr(0, l.ToPtr())
 	return l, err
 }
-func (s Raft_join_Results) Error() (string, error) {
+func (s Raft_add_Results) Error() (string, error) {
 	p, err := capnp.Struct(s).Ptr(1)
 	return p.Text(), err
 }
 
-func (s Raft_join_Results) HasError() bool {
+func (s Raft_add_Results) HasError() bool {
 	return capnp.Struct(s).HasPtr(1)
 }
 
-func (s Raft_join_Results) ErrorBytes() ([]byte, error) {
+func (s Raft_add_Results) ErrorBytes() ([]byte, error) {
 	p, err := capnp.Struct(s).Ptr(1)
 	return p.TextBytes(), err
 }
 
-func (s Raft_join_Results) SetError(v string) error {
+func (s Raft_add_Results) SetError(v string) error {
 	return capnp.Struct(s).SetText(1, v)
 }
 
-// Raft_join_Results_List is a list of Raft_join_Results.
-type Raft_join_Results_List = capnp.StructList[Raft_join_Results]
+// Raft_add_Results_List is a list of Raft_add_Results.
+type Raft_add_Results_List = capnp.StructList[Raft_add_Results]
 
-// NewRaft_join_Results creates a new list of Raft_join_Results.
-func NewRaft_join_Results_List(s *capnp.Segment, sz int32) (Raft_join_Results_List, error) {
+// NewRaft_add_Results creates a new list of Raft_add_Results.
+func NewRaft_add_Results_List(s *capnp.Segment, sz int32) (Raft_add_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 2}, sz)
-	return capnp.StructList[Raft_join_Results](l), err
+	return capnp.StructList[Raft_add_Results](l), err
 }
 
-// Raft_join_Results_Future is a wrapper for a Raft_join_Results promised by a client call.
-type Raft_join_Results_Future struct{ *capnp.Future }
+// Raft_add_Results_Future is a wrapper for a Raft_add_Results promised by a client call.
+type Raft_add_Results_Future struct{ *capnp.Future }
 
-func (f Raft_join_Results_Future) Struct() (Raft_join_Results, error) {
+func (f Raft_add_Results_Future) Struct() (Raft_add_Results, error) {
 	p, err := f.Future.Ptr()
-	return Raft_join_Results(p.Struct()), err
+	return Raft_add_Results(p.Struct()), err
 }
 
-type Raft_leave_Params capnp.Struct
+type Raft_remove_Params capnp.Struct
 
-// Raft_leave_Params_TypeID is the unique identifier for the type Raft_leave_Params.
-const Raft_leave_Params_TypeID = 0xf9ef9a25541688ef
+// Raft_remove_Params_TypeID is the unique identifier for the type Raft_remove_Params.
+const Raft_remove_Params_TypeID = 0xf9ef9a25541688ef
 
-func NewRaft_leave_Params(s *capnp.Segment) (Raft_leave_Params, error) {
+func NewRaft_remove_Params(s *capnp.Segment) (Raft_remove_Params, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Raft_leave_Params(st), err
+	return Raft_remove_Params(st), err
 }
 
-func NewRootRaft_leave_Params(s *capnp.Segment) (Raft_leave_Params, error) {
+func NewRootRaft_remove_Params(s *capnp.Segment) (Raft_remove_Params, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Raft_leave_Params(st), err
+	return Raft_remove_Params(st), err
 }
 
-func ReadRootRaft_leave_Params(msg *capnp.Message) (Raft_leave_Params, error) {
+func ReadRootRaft_remove_Params(msg *capnp.Message) (Raft_remove_Params, error) {
 	root, err := msg.Root()
-	return Raft_leave_Params(root.Struct()), err
+	return Raft_remove_Params(root.Struct()), err
 }
 
-func (s Raft_leave_Params) String() string {
+func (s Raft_remove_Params) String() string {
 	str, _ := text.Marshal(0xf9ef9a25541688ef, capnp.Struct(s))
 	return str
 }
 
-func (s Raft_leave_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+func (s Raft_remove_Params) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
 	return capnp.Struct(s).EncodeAsPtr(seg)
 }
 
-func (Raft_leave_Params) DecodeFromPtr(p capnp.Ptr) Raft_leave_Params {
-	return Raft_leave_Params(capnp.Struct{}.DecodeFromPtr(p))
+func (Raft_remove_Params) DecodeFromPtr(p capnp.Ptr) Raft_remove_Params {
+	return Raft_remove_Params(capnp.Struct{}.DecodeFromPtr(p))
 }
 
-func (s Raft_leave_Params) ToPtr() capnp.Ptr {
+func (s Raft_remove_Params) ToPtr() capnp.Ptr {
 	return capnp.Struct(s).ToPtr()
 }
-func (s Raft_leave_Params) IsValid() bool {
+func (s Raft_remove_Params) IsValid() bool {
 	return capnp.Struct(s).IsValid()
 }
 
-func (s Raft_leave_Params) Message() *capnp.Message {
+func (s Raft_remove_Params) Message() *capnp.Message {
 	return capnp.Struct(s).Message()
 }
 
-func (s Raft_leave_Params) Segment() *capnp.Segment {
+func (s Raft_remove_Params) Segment() *capnp.Segment {
 	return capnp.Struct(s).Segment()
 }
-func (s Raft_leave_Params) Node() Raft {
+func (s Raft_remove_Params) Node() Raft {
 	p, _ := capnp.Struct(s).Ptr(0)
 	return Raft(p.Interface().Client())
 }
 
-func (s Raft_leave_Params) HasNode() bool {
+func (s Raft_remove_Params) HasNode() bool {
 	return capnp.Struct(s).HasPtr(0)
 }
 
-func (s Raft_leave_Params) SetNode(v Raft) error {
+func (s Raft_remove_Params) SetNode(v Raft) error {
 	if !v.IsValid() {
 		return capnp.Struct(s).SetPtr(0, capnp.Ptr{})
 	}
@@ -733,106 +733,106 @@ func (s Raft_leave_Params) SetNode(v Raft) error {
 	return capnp.Struct(s).SetPtr(0, in.ToPtr())
 }
 
-// Raft_leave_Params_List is a list of Raft_leave_Params.
-type Raft_leave_Params_List = capnp.StructList[Raft_leave_Params]
+// Raft_remove_Params_List is a list of Raft_remove_Params.
+type Raft_remove_Params_List = capnp.StructList[Raft_remove_Params]
 
-// NewRaft_leave_Params creates a new list of Raft_leave_Params.
-func NewRaft_leave_Params_List(s *capnp.Segment, sz int32) (Raft_leave_Params_List, error) {
+// NewRaft_remove_Params creates a new list of Raft_remove_Params.
+func NewRaft_remove_Params_List(s *capnp.Segment, sz int32) (Raft_remove_Params_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Raft_leave_Params](l), err
+	return capnp.StructList[Raft_remove_Params](l), err
 }
 
-// Raft_leave_Params_Future is a wrapper for a Raft_leave_Params promised by a client call.
-type Raft_leave_Params_Future struct{ *capnp.Future }
+// Raft_remove_Params_Future is a wrapper for a Raft_remove_Params promised by a client call.
+type Raft_remove_Params_Future struct{ *capnp.Future }
 
-func (f Raft_leave_Params_Future) Struct() (Raft_leave_Params, error) {
+func (f Raft_remove_Params_Future) Struct() (Raft_remove_Params, error) {
 	p, err := f.Future.Ptr()
-	return Raft_leave_Params(p.Struct()), err
+	return Raft_remove_Params(p.Struct()), err
 }
-func (p Raft_leave_Params_Future) Node() Raft {
+func (p Raft_remove_Params_Future) Node() Raft {
 	return Raft(p.Future.Field(0, nil).Client())
 }
 
-type Raft_leave_Results capnp.Struct
+type Raft_remove_Results capnp.Struct
 
-// Raft_leave_Results_TypeID is the unique identifier for the type Raft_leave_Results.
-const Raft_leave_Results_TypeID = 0xf139b86f408c2bb0
+// Raft_remove_Results_TypeID is the unique identifier for the type Raft_remove_Results.
+const Raft_remove_Results_TypeID = 0xf139b86f408c2bb0
 
-func NewRaft_leave_Results(s *capnp.Segment) (Raft_leave_Results, error) {
+func NewRaft_remove_Results(s *capnp.Segment) (Raft_remove_Results, error) {
 	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Raft_leave_Results(st), err
+	return Raft_remove_Results(st), err
 }
 
-func NewRootRaft_leave_Results(s *capnp.Segment) (Raft_leave_Results, error) {
+func NewRootRaft_remove_Results(s *capnp.Segment) (Raft_remove_Results, error) {
 	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1})
-	return Raft_leave_Results(st), err
+	return Raft_remove_Results(st), err
 }
 
-func ReadRootRaft_leave_Results(msg *capnp.Message) (Raft_leave_Results, error) {
+func ReadRootRaft_remove_Results(msg *capnp.Message) (Raft_remove_Results, error) {
 	root, err := msg.Root()
-	return Raft_leave_Results(root.Struct()), err
+	return Raft_remove_Results(root.Struct()), err
 }
 
-func (s Raft_leave_Results) String() string {
+func (s Raft_remove_Results) String() string {
 	str, _ := text.Marshal(0xf139b86f408c2bb0, capnp.Struct(s))
 	return str
 }
 
-func (s Raft_leave_Results) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
+func (s Raft_remove_Results) EncodeAsPtr(seg *capnp.Segment) capnp.Ptr {
 	return capnp.Struct(s).EncodeAsPtr(seg)
 }
 
-func (Raft_leave_Results) DecodeFromPtr(p capnp.Ptr) Raft_leave_Results {
-	return Raft_leave_Results(capnp.Struct{}.DecodeFromPtr(p))
+func (Raft_remove_Results) DecodeFromPtr(p capnp.Ptr) Raft_remove_Results {
+	return Raft_remove_Results(capnp.Struct{}.DecodeFromPtr(p))
 }
 
-func (s Raft_leave_Results) ToPtr() capnp.Ptr {
+func (s Raft_remove_Results) ToPtr() capnp.Ptr {
 	return capnp.Struct(s).ToPtr()
 }
-func (s Raft_leave_Results) IsValid() bool {
+func (s Raft_remove_Results) IsValid() bool {
 	return capnp.Struct(s).IsValid()
 }
 
-func (s Raft_leave_Results) Message() *capnp.Message {
+func (s Raft_remove_Results) Message() *capnp.Message {
 	return capnp.Struct(s).Message()
 }
 
-func (s Raft_leave_Results) Segment() *capnp.Segment {
+func (s Raft_remove_Results) Segment() *capnp.Segment {
 	return capnp.Struct(s).Segment()
 }
-func (s Raft_leave_Results) Error() (string, error) {
+func (s Raft_remove_Results) Error() (string, error) {
 	p, err := capnp.Struct(s).Ptr(0)
 	return p.Text(), err
 }
 
-func (s Raft_leave_Results) HasError() bool {
+func (s Raft_remove_Results) HasError() bool {
 	return capnp.Struct(s).HasPtr(0)
 }
 
-func (s Raft_leave_Results) ErrorBytes() ([]byte, error) {
+func (s Raft_remove_Results) ErrorBytes() ([]byte, error) {
 	p, err := capnp.Struct(s).Ptr(0)
 	return p.TextBytes(), err
 }
 
-func (s Raft_leave_Results) SetError(v string) error {
+func (s Raft_remove_Results) SetError(v string) error {
 	return capnp.Struct(s).SetText(0, v)
 }
 
-// Raft_leave_Results_List is a list of Raft_leave_Results.
-type Raft_leave_Results_List = capnp.StructList[Raft_leave_Results]
+// Raft_remove_Results_List is a list of Raft_remove_Results.
+type Raft_remove_Results_List = capnp.StructList[Raft_remove_Results]
 
-// NewRaft_leave_Results creates a new list of Raft_leave_Results.
-func NewRaft_leave_Results_List(s *capnp.Segment, sz int32) (Raft_leave_Results_List, error) {
+// NewRaft_remove_Results creates a new list of Raft_remove_Results.
+func NewRaft_remove_Results_List(s *capnp.Segment, sz int32) (Raft_remove_Results_List, error) {
 	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 0, PointerCount: 1}, sz)
-	return capnp.StructList[Raft_leave_Results](l), err
+	return capnp.StructList[Raft_remove_Results](l), err
 }
 
-// Raft_leave_Results_Future is a wrapper for a Raft_leave_Results promised by a client call.
-type Raft_leave_Results_Future struct{ *capnp.Future }
+// Raft_remove_Results_Future is a wrapper for a Raft_remove_Results promised by a client call.
+type Raft_remove_Results_Future struct{ *capnp.Future }
 
-func (f Raft_leave_Results_Future) Struct() (Raft_leave_Results, error) {
+func (f Raft_remove_Results_Future) Struct() (Raft_remove_Results, error) {
 	p, err := f.Future.Ptr()
-	return Raft_leave_Results(p.Struct()), err
+	return Raft_remove_Results(p.Struct()), err
 }
 
 type Raft_send_Params capnp.Struct
@@ -1700,62 +1700,62 @@ func (f Item_Future) Struct() (Item, error) {
 	return Item(p.Struct()), err
 }
 
-const schema_8dcfa60b52844164 = "x\xda\x9cT_\x88TU\x1c\xfe}\xe7\xdc?.\xeb" +
-	":s\xb8\"d\xd1\xe42BZS\xbbk\x1b\xae%" +
-	"{\x95\x08D\x82\xb9C\xff\x16\x0a\xbc\xbbs\xb4\xd1\x9d" +
-	"?\xce\x9dY+Y\x0ak\xa1\xa1\xa2\xa7($\x83J" +
-	"$\x1f,\xa3\xa0|\xd0\xea!{\xa8({\x92\"\x88" +
-	"\x08\x82\xf5aYC\xb2^n\x9c\xe3\xdc;w\xda\x19" +
-	"B\xdff\xeew~\xdf\xef;\xdf\xef\xfb\x9d\x91\x02s" +
-	"\x8d\xd1\xa1?,b^\xde\xb4\xc2\xf7\x0e=o\x1d\xb8" +
-	"\xb4\xfb-\x12i\x10\x99\xb0\x89\x9c)\xfe\x1b\xc1y\x92" +
-	"O\x12\xc2\xe3\xc7>\xfcu\xcf\xbd\x8f\xbe\x7f\x0d7\x14" +
-	"<\xcf\x7f$#\x1c?\xf8\xb2\x7f\"\xf7\xe0\x07$\x06" +
-	"\x11\x16w\xbcX\x18<\xf1\xfd\xabd2u\xc2\xe7G" +
-	"\x1c\xc9\xaf\xfd:D\x08_\xfb\xf3\xe3\x9b\x9aO\x0d\x9c" +
-	"n7\xd1g\xce\xf2E\x82\xf3\xa5\xc6\x7f\xf9\xf4\xe7\x8b" +
-	"\xe9\xf3W?J\x8a\xc8\x19J\xc4\xa8\xa1D\x9c<\xb3" +
-	"\xee\xce\xc3\xa5\xbb\xcf&\xf0-\x9e\xc1@p\x1e\xd1\x07" +
-	"\xbe\xd9\xbe'=\\\xfb\xe4s\x12\x83\xbc#\x86\xe0," +
-	"\x18G\x9c\x96R\xbde\xc1\xf8\x1a\xce1\xd3&\x0a\x1f" +
-	"\xcb\xdc?\xf2\xc4\xd6\xc3_\x90\x97Ft\xa9\x05\xf3'" +
-	"\x82\xd32\x15\xdb\x0bS\xf3o\x9f[\xbaz>)\xe7" +
-	"\xa4\xa9\xe4\x9c\xd2\xf8\xc5\xdd3\x1b\xde|z\xe6\x87$" +
-	"\xfe\x9d\xae\xbf\xa0\xf1\xa3\xc7\xfd\x81\x89o\xcdKI|" +
-	"\xd9\xbcLp\xaeh\xfc\xf4\x1d\xaf\xb8\xd5\xcf&\x96\x93" +
-	"\xf8FK\xe1\x9b,\x85\xff~k\xee\xbesoL/" +
-	"'<\xdfe-\x92\x11\xee\xbdm\xf1\xaf}\xefV/" +
-	"w\xf9d)\x1fGu\xe1\xb3\x8f\xcfm\xb8\xb9\xe5_" +
-	"I\x14z\xd6?d\x84K/\xad{x\xe3\xd1\xa5\xbf" +
-	"\x93\x85\xe3\xbap\xc2\x9a\xa4\\X\xf7\xf76\xee\x9a\xf1" +
-	"k\xacR\xdbVP\xbfk\xcdF\xb6 \x83\xa6=\xdb" +
-	"\x08<\x83\x1bD\x06\x88\xc4\xd0\x18\x91\xb7\x8a\xc3[\xcb" +
-	"\x90\x91\xf5z\xb5\x8e\xd5\xc4\xb0\x9a\xb0\x92\xa2T\xcc\xe6" +
-	"\xfd\xba_F\x10c\xa8\xd4\xb6\xedj\xc82\xe5\x01o" +
-	"U\xcc\xbai\x98\xc8\xcbrx#\x0c\x02X\xab\x86\"" +
-	"r\xaa\xd5\xed\x1c\xde=\x0c\xf6\x01\xf9\x0c\x86\x88a\x88" +
-	"\x90\x99\xf3g\x9b2\xfa\xb7\xb2\xed\xfej\xa9\xa2\xa4\xa7" +
-	"\x9aJz\xa2\xc9X\xbb\x89\x9bh\xb2]}\xdc\xca\xe1" +
-	"=\xc0\x90\xa9T\x8b2\xc0\x1aB\x9e\x03\xa2\x93)\x82" +
-	"\xfa\xf8\x7f\xd7\x0ddE_\xd8\xf6\xcb]\x8e\x0dw\x1c" +
-	"\xb3\xcb\xc1\xbe\x15\xc2yDP\x96\xe5iY\x0f\xb4\xed" +
-	"\xb3\x8d\x80\x92$;\xdb$Y\x86\xe7\xda\xe7\xfa\x0a\xed" +
-	"r[1k\xb7o\xe1&Q\x9clD\x1b).l" +
-	"&&\xbe\xb2\x818#\x88\xe2)\xce\x8c\x11\x13\xa7l" +
-	"\xb0xA\x11%P\xbc\xa3\xea^\xb7\xc1\xe3m@\xf4" +
-	"\x94\x88\xd6011o\xc3\x88\x93\x8ch%\xc4A\xc5" +
-	")m\x98qX\x11m\xb7\x98\xdaIL<d\xc3\x8a" +
-	"_\x1dD\xab*v\xac'&\xc6\xed\x94\x1a\xaf\x8b\xcc" +
-	"\xac\xf4\xe7\xa4\x8b\x94r\xdd\x85]k6\\dJ\x0d" +
-	"Y\x0e\xdc\xd8!\x17\xbcTt\x91G\xefpj\x9fy" +
-	"w\xbc\xd7w\x86\xc5KE\x0c\x10\xc3@\xdf\x90\xf5\x18" +
-	"\xf6\xe6N}J\xc5\xe9?\xd3\x11\xbd\xb8\xd4\xaa\xa9E" +
-	"\xe1\xfd\xa9\xd4\xc5\x90\xee<\xb9\x04\xa4{\xae\x9c2 " +
-	"[\x90\x19\x9d\xa0~\x01\xaaN\xef\x973\x8d8@\xdd" +
-	"\xbckz\xf1j\xb7{\xf2^\xcf{\xa0\xc5\xe5\xfdT" +
-	"\xdd/\x07}\xf6'\xde\xdb\x1bk\x11\xad\xd0\xa4~x" +
-	"\x82~\x17ik\xb8\xbe\xc1\xfd\x1b\x00\x00\xff\xffr\x9a" +
-	"\xdc\xf6"
+const schema_8dcfa60b52844164 = "x\xda\xa4T]h\x1cU\x18\xfd\xce\xbd\xf3\xd3\xd0\xa6" +
+	"\xd9\xcb\x94\x82U\\\x1b\xb6`\xab\xabij\xa4\x89\x96" +
+	"\x9d\x16\x11J\x11v\x16\xff\x02\x0a\x9ddn\xeb\xdaL" +
+	"v\xbb\xb3\x9b\xaa%(\xd5\x80A\xc5'Q\x8a\x15\xd4" +
+	"R\xecC\xb5\xa2\xa0}h\xd5\x07\xeb\x83\x8a\xd6\xa7\xa2" +
+	"\x08\"\x82\x90>\x84T\x8a\xb5/#\xf7&3;k" +
+	"\xb2\x94\xe2\xdb\xee\x9c{\xcfw\xbes\xcf\xf7\x0dT\x98" +
+	"kl\xed\xfd\xd3\"\xe6\x95M+~\xff\xd0\x0b\xd6\x81" +
+	"K{\xde&\x91\x03\x91\x09\x9b\xc8\x19\xe5\xbf\x13\x9c'" +
+	"y\x89\x10\x1f?\xf6\xd1o{\xef}\xf4\x83E\xdcP" +
+	"\xf04\xff\x89\x8cx\xe8\xe0+\xfe\x89\xe2\x83\x1f\x92X" +
+	"\x8d8\xd8\xf9Re\xf5\x89\x1f^#\x93\xa9\x13>?" +
+	"\xe2H\xbe\xf8\xeb\x10!~\xfd\xafOnj=\xd5s" +
+	"z\xa9\x88>sV\x17\xf9J\xe3\xbf~\xf6\xcb\xc5\xdc" +
+	"\xf9\xab\x1fgE\x14\x0d\x85o5\x94\x88\x93g\xd6\xdf" +
+	"y\xb8z\xf7\xd9\x0c\xbe\xcd3\x18\x08\xce#\xfa\xc0\xb7" +
+	";\xf6\xe6\xfa\xeb\x9f~Ab5o\x8b!83\xc6" +
+	"\x11gV\xa9\xde6c|\x03\xe7\x98i\x13\xc5\x8f\xe5" +
+	"\xef\x1fxb\xfb\xe1/\xc9\xcb!ij\xc6\xfc\x99\xe0" +
+	"\xcc\x9a\x8a\xed\xc5\xd1\xe9w\xce\xcd_=\x9f\x95sR" +
+	"\xe3\xa74~q\xcf\xf8\xc6\xb7\x9e\x19\xff1\x8b\x7f\xaf" +
+	"\xf1\x0b\x1a?z\xdc\xef\x19\xfe\xce\xbc\x94\xc5\x17\xcc\xcb" +
+	"\x04\xe7\x8a\xc6O\xdf\xf1\xaa[\xfb|x!\x8bo\xb2" +
+	"\xae\x11\x9c\xcd\x96\xc2\xff\xb8\xb5x\xdf\xb97\xc7\x162" +
+	"\x9e\xef\xb6\xe6\xc8\x88\xf7\xdd6\xf7\xf7\xfe\xf7j\x97;" +
+	"|\xb2\xe6\x94O\xfa\xe2s\x8fOm\xbcy\xd6\xbf\x92" +
+	"\xb9\xe8Y\xd7\xc8\x88\xe7_^\xff\xf0\xa6\xa3\xf3\xffd" +
+	"/\x0eYJ\xd1\xb0U\xa2b\xdc\xf0\xf75\xef\x1a\xf7" +
+	"\xebl\xb2>RQ\xbf\xeb\xadf\xa1\"\xa3\x96=\xd1" +
+	"\x8c<\x83\x1bD\x06\x88D\xef \x91\xb7\x8a\xc3[\xc7" +
+	"\x90\x97\x8dF\xad\x815\xc4\xb0\x86\xb0\x9c\xa2\x1a\x14\xca" +
+	"~\xc3\x0f\x11\xa5\x18&\xeb#\xbb\x9b2\xa42\xe0\xad" +
+	"JY7\xf7\x13y\x05\x0eo\x80A\x00\xeb\xd4\xa3\x88" +
+	"\xa2*u;\x87w\x0f\x83}@>\x8b^b\xe8%" +
+	"\xe4\xa7\xfc\x89\x96L\xfe-/\xeb\x07A[y\xa6\xc6" +
+	"\xe0R\x0d7Sc\x87\xfa\xb8\x9d\xc3{\x80!?Y" +
+	"\x0bd\x84\xb5\x842\x07D;R\x04\xf5\xf1z\xddF" +
+	"rR\xf7k\xfba\x87a\xfdm\xc3\xec0\xda\xbfL" +
+	"7O\x08B\x19\x8e\xc9F\xa4\xb5O4#\xca\x92\xec" +
+	"Z\")0<\xbft\xae\xab\xd0\x0e\xb3\x15\xb36\xfb" +
+	"\x16n\x12\xa5\xc1F2\x90\xe2B?1\xf1\xb5\x0d\xa4" +
+	"\x11A\x92Nqf\x84\x988e\x83\xa5\xf3\x89$\x80" +
+	"\xe2\xdd-\xc4\xc4\x1b6x:\x0cH6\x89\x98U\x9c" +
+	"\xd36\x8c4\xc8H&B\x1c\x1c$&\xa4\x0d3\xcd" +
+	"*\x92\xe1\x16\xa3\xbb\x88\x89\x87lX\xe9\xd2A2\xa9" +
+	"b\xe7\x06bb\xc8\xb6\xfd pQj\xc8\xb06%" +
+	"]\xf4)\xd7]\xd8\xf5V\xd3E\xbe\xda\x94a\xe4\xa6" +
+	"\x0e\xb9\xe0\xd5\xc0E\x19+gS\xfb\xcc;\xd3\xbd\xa1" +
+	"\xfdX\xbc\x1a\xa0\x87\x18z\xbaeLe\x9bw\xbe\xf5" +
+	"\x96\xf6\xf5>\x95\xa6\xff<\x8eX\x89J\x0d\xdau\xa8" +
+	"T_\xc8\xb5\x17.\x01\xb9\x15\x07N\xf5_\xa8\xc8\xbc" +
+	"\x0eP\xb7\xfc\xd4\xc6\x9e\x96\xe3\xcd4?\x9d\xbckW" +
+	"\xe2]t\xbbP)\xc9e\xc47\xb2\x0e\xb4\xba\xb2\xdf" +
+	"\xd7\xf0\xc3\xa8\xcb\xfcTd\xd4\xf7?J$#T\xd2" +
+	"{'\xea\xdaI9\xaf\xf1\x1b{\xba\x7f\x03\x00\x00\xff" +
+	"\xff01\xdd "
 
 func RegisterSchema(reg *schemas.Registry) {
 	reg.Register(&schemas.Schema{
