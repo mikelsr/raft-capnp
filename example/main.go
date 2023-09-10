@@ -9,6 +9,9 @@ import (
 	"github.com/mikelsr/raft-capnp/raft"
 )
 
+// Users need to define a node retrieval function. In the example we'll use
+// a global map that all goroutines can access. It'll be read-only after
+// the initial steps, so no thread-safety measures need to be taken.
 var nodes map[uint64]api.Raft
 
 func retrieve(ctx context.Context, u uint64) (api.Raft, error) {
@@ -19,6 +22,13 @@ func retrieve(ctx context.Context, u uint64) (api.Raft, error) {
 	return n, nil
 }
 
+// Create three Raft nodes.
+// Register their capabilities on the aforementioned map.
+// Start one of them (n1) and wait until it becomes the leader of the Raft.
+// Start n2 and n3.
+// Join n1 from n2 and n3.
+// The log will show what is happenning in the Raft,
+// feel free to play around and add or remove items and nodes.
 func main() {
 	nodes = make(map[uint64]api.Raft)
 

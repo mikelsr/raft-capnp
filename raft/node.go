@@ -40,6 +40,7 @@ type Node struct {
 	init bool
 }
 
+// Node constructor. Call Node.WithX methods for configuration.
 func New() *Node {
 	return &Node{
 		View:   NewView(),
@@ -53,7 +54,7 @@ func New() *Node {
 	}
 }
 
-// Cap instantiates a new capability from n.
+// Cap instantiates a new Raft capability from the node.
 func (n *Node) Cap() api.Raft {
 	return api.Raft_ServerToClient(n).AddRef()
 }
@@ -124,13 +125,6 @@ func (n *Node) Init() {
 		n.init = true
 		n.lateConfig()
 		peerList := []raft.Peer{{ID: n.ID}}
-		// n.Cluster.addPeer(n.ID, n.Cap())
-		// for k := range n.Cluster.Peers() {
-		// 	if k == n.ID {
-		// 		continue
-		// 	}
-		// 	peerList = append(peerList, raft.Peer{ID: k})
-		// }
 		n.Raft = raft.StartNode(n.Config, peerList)
 		n.Logger.Debug("init done")
 	}
