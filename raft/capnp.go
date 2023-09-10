@@ -8,14 +8,14 @@ import (
 	"go.etcd.io/raft/v3/raftpb"
 )
 
-// Join a Raft cluster.
-func (n *Node) Join(ctx context.Context, call api.Raft_join) error {
+// Add a node to the Raft cluster.
+func (n *Node) Add(ctx context.Context, call api.Raft_add) error {
 	res, err := call.AllocResults()
 	if err != nil {
 		return err
 	}
 	node := call.Args().Node()
-	nodes, err := n.join(ctx, node)
+	nodes, err := n.add(ctx, node)
 	if err != nil {
 		res.SetError(err.Error())
 		return err
@@ -35,8 +35,8 @@ func (n *Node) Join(ctx context.Context, call api.Raft_join) error {
 	return nil
 }
 
-// join is the capnp-free logic of Join.
-func (n *Node) join(ctx context.Context, node api.Raft) ([]api.Raft, error) {
+// add is the capnp-free logic of Add.
+func (n *Node) add(ctx context.Context, node api.Raft) ([]api.Raft, error) {
 	node = node.AddRef()
 
 	if err := node.Resolve(ctx); err != nil {
@@ -72,22 +72,22 @@ func (n *Node) join(ctx context.Context, node api.Raft) ([]api.Raft, error) {
 	return peers, nil
 }
 
-// Leave a Raft cluster.
-func (n *Node) Leave(ctx context.Context, call api.Raft_leave) error {
+// Remove a node from the cluster.
+func (n *Node) Remove(ctx context.Context, call api.Raft_remove) error {
 	res, err := call.AllocResults()
 	if err != nil {
 		return err
 	}
 	node := call.Args().Node()
-	if err = n.leave(ctx, node.AddRef()); err != nil {
+	if err = n.remove(ctx, node.AddRef()); err != nil {
 		res.SetError(err.Error())
 		return err
 	}
 	return nil
 }
 
-// leave is the capnp-free logic of Leave.
-func (n *Node) leave(ctx context.Context, node api.Raft) error {
+// remove is the capnp-free logic of Remove.
+func (n *Node) remove(ctx context.Context, node api.Raft) error {
 	id, err := rpcGetId(ctx, node.AddRef())
 	if err != nil {
 		return err
