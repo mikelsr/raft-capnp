@@ -289,12 +289,12 @@ func (n *Node) addConfChange(ctx context.Context, entry raftpb.Entry) error {
 }
 
 func (n *Node) addNode(ctx context.Context, cc raftpb.ConfChange) error {
-	return n.Register(ctx, cc.NodeID)
+	return n.register(ctx, cc.NodeID)
 }
 
 func (n *Node) removeNode(ctx context.Context, cc raftpb.ConfChange) error {
 	// Unregister the node.
-	defer n.Unregister(ctx, cc.NodeID)
+	defer n.unregister(ctx, cc.NodeID)
 
 	// Leader, self, steps down.
 	if n.ID == cc.NodeID && n.ID == n.Raft.Status().Lead {
@@ -367,8 +367,8 @@ func (n *Node) retrieveWithTimeout(ctx context.Context, id uint64, timeout time.
 	return node.AddRef(), err
 }
 
-// Register a new node in the cluster.
-func (n *Node) Register(ctx context.Context, id uint64) error {
+// register a new node in the cluster.
+func (n *Node) register(ctx context.Context, id uint64) error {
 	var (
 		err  error
 		node api.Raft
@@ -392,8 +392,8 @@ func (n *Node) Register(ctx context.Context, id uint64) error {
 	return nil
 }
 
-// Unregister a node.
-func (n *Node) Unregister(ctx context.Context, id uint64) {
+// unregister a node.
+func (n *Node) unregister(ctx context.Context, id uint64) {
 	n.Logger.Debugf("[%x] unregister node %x\n", n.ID, id)
 	if n.ID == id {
 		return
