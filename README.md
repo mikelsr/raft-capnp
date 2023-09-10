@@ -26,6 +26,8 @@ interface Raft {
 }
 ```
 
+---
+
 Using the library:
 
 ```go
