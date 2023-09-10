@@ -9,9 +9,9 @@ The Cap'n Proto definition provides methods to:
 
 ```python
 interface Raft {
-    add    @0 (node :Raft) -> (nodes :List(Raft), error :Text);
+    add     @0 (node :Raft) -> (nodes :List(Raft), error :Text);
     # Propose adding $node to the Raft.
-    remove   @1 (node :Raft) -> (error :Text);
+    remove  @1 (node :Raft) -> (error :Text);
     # Propose removing $node from the Raft.
     send    @2 (msg  :Data) -> (error :Text);
     # Send a message to the Raft node.
