@@ -69,12 +69,12 @@ func main() {
 	go n3.Start(ctx)
 
 	// n2 joins n1.
-	c1.Join(ctx, func(r api.Raft_join_Params) error {
+	c1.Add(ctx, func(r api.Raft_add_Params) error {
 		return r.SetNode(c2.AddRef())
 	})
 
 	// n3 joins n1.
-	c1.Join(ctx, func(r api.Raft_join_Params) error {
+	c1.Add(ctx, func(r api.Raft_add_Params) error {
 		return r.SetNode(c3.AddRef())
 	})
 
