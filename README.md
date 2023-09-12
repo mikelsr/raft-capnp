@@ -35,7 +35,7 @@ import (
     // for RPC calls
     "github.com/mikelsr/raft-capnp/proto/api"
     // for building and running nodes
-	"github.com/mikelsr/raft-capnp/raft"
+    "github.com/mikelsr/raft-capnp/raft"
 )
 ```
 
