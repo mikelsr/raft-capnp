@@ -161,7 +161,7 @@ func (n *Node) Put(ctx context.Context, call api.Raft_put) error {
 		return err
 	}
 
-	if err = n.put(ctx, item); err != nil {
+	if err = n.PutItem(ctx, item); err != nil {
 		res.SetError(err.Error())
 		return err
 	}
@@ -169,8 +169,8 @@ func (n *Node) Put(ctx context.Context, call api.Raft_put) error {
 	return nil
 }
 
-// put is the capnp-free logic of Put.
-func (n *Node) put(ctx context.Context, item Item) error {
+// PutItem is the capnp-free logic of Put.
+func (n *Node) PutItem(ctx context.Context, item Item) error {
 	itemData, err := item.Marshal()
 	if err != nil {
 		return err

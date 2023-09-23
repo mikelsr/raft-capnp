@@ -16,7 +16,7 @@ import (
 // Node implements api.Raft_Server.
 type Node struct {
 	*View
-	items  ItemMap
+	Map    ItemMap
 	queue  MessageQueue
 	Logger raft.Logger
 
@@ -44,7 +44,7 @@ type Node struct {
 func New() *Node {
 	return &Node{
 		View:   NewView(),
-		items:  ItemMap{},
+		Map:    ItemMap{},
 		queue:  make(MessageQueue),
 		Logger: DefaultLogger(false),
 
@@ -244,10 +244,12 @@ func (n *Node) addEntry(entry raftpb.Entry) error {
 	}
 
 	if n.OnNewValue != nil {
-		n.OnNewValue(*item)
+		if err := n.OnNewValue(*item); err != nil {
+			return err
+		}
 	}
 
-	n.items.Put(*item)
+	n.Map.Put(*item)
 
 	return nil
 }
